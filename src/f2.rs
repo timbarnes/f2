@@ -36,13 +36,18 @@ const LEN_MASK: u32 = 0x03FF;
 ///                 
 pub struct F2 {
     data: [i32; DATA_SIZE], // WORD, TIB, PAD, STACK, RET and ALLOC space
-    data_ptr: usize,        // index into the data space "here"
-    tib_in: usize,          // index into TIB
-    last: usize,            // header of the last word defined
+    here_ptr: usize,        // address of index into the word data space "here"
     stack_ptr: usize,       // point to next spot  on the forth stack
     ret_ptr: usize,         // point to next spot on the return stack
     alloc_ptr: usize,       // point to the top of unused ALLOC space
     compile: bool,          // compile mode indicator
+    base_ptr: usize,        // address of numeric base for I/O
+    tmp_ptr: usize,         // used for numeric calculations
+    span_ptr: usize,        // ??
+    tib_in_ptr: usize,      // address of offset into TIB
+    hld_ptr: usize,         // used by HOLD
+    context_ptr: usize,     // name field of last word
+    last_ptr: usize,        // CONTEXT after build is complete
     exit_flag: bool,
     reader: Reader, // for interactive input
     msg: Msg,
@@ -53,13 +58,20 @@ impl F2 {
         if let Some(rdr) = Reader::new(None, Msg::new()) {
             Ok(F2 {
                 data: [0; DATA_SIZE],
-                data_ptr: WORD_START,
-                tib_in: TIB_START,
-                last: 0, // first word will start here with it's zero back pointer
+                here_ptr: WORD_START,
                 stack_ptr: STACK_START,
                 ret_ptr: RET_START,
                 alloc_ptr: ALLOC_START,
                 compile: false,
+                // Address in data[] of system variables used by the engine
+                base_ptr: 0,    // numeric base for I/O
+                tmp_ptr: 0,     // used for numeric calculations
+                span_ptr: 0,    // ??
+                tib_in_ptr: 0,  // offset into TIB
+                hld_ptr: 0,     // used by HOLD
+                context_ptr: 0, // name field of last word
+                last_ptr: 0,    // CONTEXT after build is complete
+                // internals
                 exit_flag: false,
                 reader: rdr,
                 msg: Msg::new(),
@@ -71,13 +83,14 @@ impl F2 {
 
     pub fn init(&mut self) {
         // Initialize the data area with primitives
-        self.data_ptr = self.insert_builtins();
-        println!("data_ptr is now {}", self.data_ptr);
-        let index = self.f2_find("bye");
+        let mut ptr = self.insert_variables();
+        println!("data_ptr is now {}", self.data[self.here_ptr]);
+        ptr = self.insert_constants();
+        println!("data_ptr is now {}", self.data[self.here_ptr]);
+        ptr = self.insert_builtins();
+        println!("data_ptr is now {}", self.data[self.here_ptr]);
+        let index = self.find_word("bye");
         println!("FIND found: {}", index);
-
-        self.insert_variables();
-        self.insert_constants();
     }
 
     pub fn run(&mut self) {
@@ -96,13 +109,13 @@ impl F2 {
         true
     }
 
-    fn f2_find(&self, word: &str) -> usize {
+    fn find_word(&self, word: &str) -> usize {
         // returns the address of a word on the stack, if it's defined
         // uses the data_ptr as starting point, and loops back
         print!("Finding {}..", word);
         let word_len: usize = word.len();
         let mut mismatch = false;
-        let mut scanner = self.data[self.data_ptr] as usize; // the newest used back pointer
+        let mut scanner = self.data[self.here_ptr] as usize; // the newest used back pointer
         loop {
             if scanner == 0 {
                 // no more words to search
@@ -133,29 +146,43 @@ impl F2 {
         }
     }
 
-    fn f2_variable(&mut self) -> i32 {
-        // Create a variable, placing the address on the stack, and returning the address
-        // get the name from the TIB
+    fn make_variable(&mut self, name: &str) -> usize {
+        // Create a variable, returning the address and updating the data_ptr
         // build the header for a variable
-        let word_addr = self.f2_word(' '); // install the name
-        self.s_push(word_addr);
-        word_addr
+        let variable_ptr = self.make_word(&name, VARIABLE, &[0]); // install the name
+        variable_ptr
     }
 
-    fn f2_constant(&mut self) {
-        // Create a constant, taking the value from the stack
-        // get the name from the TIB
+    fn make_constant(&mut self, name: &str, val: i32) -> usize {
+        // Create a constant
         // build the header for a constant
-        let word_addr = self.f2_word(' '); // install the name
-        let val = self.s_pop();
-        self.d_push(val);
+        let const_ptr = self.make_word(name, CONSTANT, &[val]); // install the name
+        const_ptr
     }
 
-    fn f2_word(&mut self, delim: char) -> i32 {
-        // get a word from the buffer, delimited by delim
-        // place it HERE, returning the address on the stack
-        let word_addr = 0;
-        word_addr
+    fn make_word(&mut self, name: &str, flags: u32, args: &[i32]) -> usize {
+        // install a new word with provided name, flags and arguments
+        // back link is already in place
+        // place it HERE
+        // update HERE and LAST
+        // return HERE
+        let back = self.data[self.here_ptr] as usize; // the top-of-stack back pointer's location
+        let mut ptr = back + 1;
+        self.data[ptr] = (name.len() as u32 | flags) as i32;
+        for c in name.chars() {
+            // install the name
+            ptr += 1;
+            self.data[ptr] = c as i32;
+        }
+        for val in args {
+            ptr += 1;
+            self.data[ptr] = *val;
+        }
+        ptr += 1;
+        self.data[ptr] = back as i32; // the new back pointer
+        self.data[self.here_ptr] = ptr as i32; // top of the stack = HERE
+        self.data[self.context_ptr] = back as i32 + 1; // context is the len/flags field of this word
+        ptr // updated HERE location
     }
 
     pub fn builtin(&mut self, addr: u32) {
@@ -208,8 +235,8 @@ impl F2 {
             7 => {}                                                                // >NUMBER
             8 => self.s_push(TIB_START as i32),                                    // TIB
             9 => self.s_push((DATA_SIZE - TIB_START) as i32),                      // #TIB
-            10 => self.s_push(self.tib_in as i32),                                 // >IN
-            11 => self.s_push(self.data_ptr as i32),                               // HERE
+            10 => self.s_push(self.tib_in_ptr as i32),                             // >IN
+            11 => self.s_push(self.here_ptr as i32),                               // HERE
             12 => {}                                                               // CALIGNED
             13 => {}                                                               // BYE
             14 => self.exit_flag = true,                                           // EXIT
@@ -283,7 +310,7 @@ impl F2 {
                 // ' find a name in the dictionary if it's there
                 // loop through the back pointers
                 let name = "while";
-                let addr = self.f2_find(name);
+                let addr = self.find_word(name);
                 if addr > 0 {
                     self.s_push(addr as i32);
                 }
@@ -406,14 +433,17 @@ impl F2 {
             (71, "branch"),
             (72, "branch0"),
         ];
-        self.data[WORD_START] = 0; // initial cell is the end of the line
-        let mut ptr = WORD_START; // the starting point
-                                  // self.last = 0;
 
+        let mut ptr = self.data[self.here_ptr] as usize;
+        self.data[ptr] = 0; // initial cell is the end of the line
+        self.data[self.here_ptr] += 1; // increment HERE, updated by make_word
         for (code, name) in BUILTIN_CONFIG.iter() {
-            let name = *name;
+            ptr = self.make_word(&name, BUILTIN, &[*code]);
+        }
 
-            self.last = ptr; // update it to this definition's back pointer
+        /*             let name = *name;
+
+            self.last_ptr = ptr; // update it to this definition's back pointer
             ptr += 1; // pointing to length / flag word
             self.data[ptr] = ((*name).len() as u32 | BUILTIN) as i32; // All need this flag
             for c in name.chars() {
@@ -423,14 +453,45 @@ impl F2 {
             ptr += 1; // now the code word (builtin index)
             self.data[ptr] = *code; // install the code word
             ptr += 1; // move ahead to the next address / back pointer
-            self.data[ptr] = self.last as i32; // install the back pointer for the next word
-        }
+            self.data[ptr] = self.last_ptr as i32; // install the back pointer for the next word
+        } */
+        // record in the HERE variable
+        self.data[self.here_ptr] = ptr as i32;
         ptr // now points to the new back pointer
     }
 
     fn insert_variables(&mut self) -> usize {
         // install system variables in data area
-        999
+
+        // hand craft HERE, because it's needed by make_word
+        self.data[0] = 0; // null pointer
+        self.data[1] = (4 | VARIABLE) as i32; //
+        for (i, c) in "here".char_indices() {
+            self.data[i + 2] = c as i32;
+        }
+        self.data[6] = 7; // the value of HERE
+        self.data[7] = 0; // back pointer
+        self.here_ptr = 6; // the address of the HERE variable
+
+        // hand craft CONTEXT, because it's needed by make_word
+        self.data[8] = (7 | VARIABLE) as i32;
+        for (i, c) in "context".char_indices() {
+            self.data[i + 9] = c as i32;
+        }
+        self.data[16] = 8;
+        self.data[17] = 7; // back pointer
+        self.context_ptr = 8;
+        self.data[self.here_ptr] = 17;
+
+        self.base_ptr = self.make_variable("base");
+        self.data[self.base_ptr] = 10;
+        self.tmp_ptr = self.make_variable("tmp");
+        self.tib_in_ptr = self.make_variable(">in");
+        self.data[self.tib_in_ptr as usize] = TIB_START as i32;
+        self.hld_ptr = self.make_variable("hld");
+
+        self.last_ptr = self.make_variable("last");
+        self.data[self.here_ptr] as usize
     }
 
     fn insert_constants(&mut self) -> usize {
@@ -500,7 +561,7 @@ impl F2 {
 
     fn d_push(&mut self, val: i32) {
         // adds a new value at HERE (first empty cell), updating the pointer
-        self.data_ptr += 1;
-        self.data[self.data_ptr] = val;
+        self.here_ptr += 1;
+        self.data[self.here_ptr] = val;
     }
 }
