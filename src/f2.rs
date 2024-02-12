@@ -41,6 +41,7 @@ pub struct F2 {
     ret_ptr: usize,         // point to next spot on the return stack
     alloc_ptr: usize,       // point to the top of unused ALLOC space
     compile: bool,          // compile mode indicator
+    tick_eval_ptr: usize,   // used by EVAL to select compile vs interpret modes
     base_ptr: usize,        // address of numeric base for I/O
     tmp_ptr: usize,         // used for numeric calculations
     span_ptr: usize,        // ??
@@ -64,13 +65,14 @@ impl F2 {
                 alloc_ptr: ALLOC_START,
                 compile: false,
                 // Address in data[] of system variables used by the engine
-                base_ptr: 0,    // numeric base for I/O
-                tmp_ptr: 0,     // used for numeric calculations
-                span_ptr: 0,    // ??
-                tib_in_ptr: 0,  // offset into TIB
-                hld_ptr: 0,     // used by HOLD
-                context_ptr: 0, // name field of last word
-                last_ptr: 0,    // CONTEXT after build is complete
+                tick_eval_ptr: 0, // points to $COMPILE or $INTERPRET for EVAL
+                base_ptr: 0,      // numeric base for I/O
+                tmp_ptr: 0,       // used for numeric calculations
+                span_ptr: 0,      // ??
+                tib_in_ptr: 0,    // offset into TIB
+                hld_ptr: 0,       // used by HOLD
+                context_ptr: 0,   // name field of last word
+                last_ptr: 0,      // CONTEXT after build is complete
                 // internals
                 exit_flag: false,
                 reader: rdr,
@@ -89,8 +91,9 @@ impl F2 {
         println!("data_ptr is now {}", self.data[self.here_ptr]);
         ptr = self.insert_builtins();
         println!("data_ptr is now {}", self.data[self.here_ptr]);
-        let index = self.find_word("bye");
+        let index = self.find_word("'eval");
         println!("FIND found: {}", index);
+        self.data[self.tick_eval_ptr] = index as i32;
     }
 
     pub fn run(&mut self) {
@@ -98,6 +101,12 @@ impl F2 {
         // Enter the read-eval-print loop
         // Return after "bye" or EOF
         self.exit_flag = true;
+        loop {
+            if self.should_exit() {
+                break;
+            } else {
+            }
+        }
     }
 
     pub fn should_exit(&self) -> bool {
@@ -112,7 +121,7 @@ impl F2 {
     fn find_word(&self, word: &str) -> usize {
         // returns the address of a word on the stack, if it's defined
         // uses the data_ptr as starting point, and loops back
-        print!("Finding {}..", word);
+        // print!("Finding {}..", word);
         let word_len: usize = word.len();
         let mut mismatch = false;
         let mut scanner = self.data[self.here_ptr] as usize; // the newest used back pointer
@@ -185,7 +194,7 @@ impl F2 {
         ptr // updated HERE location
     }
 
-    pub fn builtin(&mut self, addr: u32) {
+    pub fn at_execute(&mut self, addr: u32) {
         // execute a builtin word, identified by an index into data space
 
         macro_rules! pop2_push1 {
@@ -237,7 +246,7 @@ impl F2 {
             9 => self.s_push((DATA_SIZE - TIB_START) as i32),                      // #TIB
             10 => self.s_push(self.tib_in_ptr as i32),                             // >IN
             11 => self.s_push(self.here_ptr as i32),                               // HERE
-            12 => {}                                                               // CALIGNED
+            12 => {}                                                               // ABORT
             13 => {}                                                               // BYE
             14 => self.exit_flag = true,                                           // EXIT
             15 => pop2_push1!(|next, top| next + top),                             // +
@@ -294,18 +303,18 @@ impl F2 {
                 self.s_push(n2);
                 self.s_push(n1);
             }
-            43 => {} // IF
-            44 => {} // ELSE
-            45 => {} // THEN
-            46 => {} // BEGIN
-            47 => {} // WHILE
-            48 => {} // AGAIN
-            49 => {} // REPEAT
-            50 => {} // UNTIL
-            51 => {} // DO
-            52 => {} // LOOP
-            53 => {} // I
-            54 => {} // J
+            43 => {} // [
+            44 => {} // $INTERPRET
+            45 => {} // .OK
+            46 => {} // EVAL
+            47 => {} // PRESET
+            48 => {} // QUIT
+            49 => {} // QUERY
+            50 => {} // TOKEN
+            51 => {} // PARSE
+            52 => {} // (PARSE)
+            53 => {} // "
+            54 => {} // ."
             55 => {
                 // ' find a name in the dictionary if it's there
                 // loop through the back pointers
@@ -339,6 +348,18 @@ impl F2 {
             70 => {}                               // IMMEDIATE
             71 => {}                               // BRANCH
             72 => {}                               // BRANCH0
+            73 => {}                               // IF
+            74 => {}                               // ELSE
+            75 => {}                               // THEN
+            76 => {}                               // BEGIN
+            77 => {}                               // WHILE
+            78 => {}                               // AGAIN
+            79 => {}                               // REPEAT
+            80 => {}                               // UNTIL
+            81 => {}                               // DO
+            82 => {}                               // LOOP
+            83 => {}                               // I
+            84 => {}                               // J
             _ => println!("Unrecognized builtin"), // not a builtin
         }
     }
@@ -359,7 +380,7 @@ impl F2 {
         //      1 << 30: string
         //      1 << 31: word
         //
-        const BUILTIN_CONFIG: [(i32, &'static str); 72] = [
+        const BUILTIN_CONFIG: [(i32, &'static str); 84] = [
             (1, "!"),
             (2, ","),
             (3, "@"),
@@ -371,7 +392,7 @@ impl F2 {
             (9, "#tib"),
             (10, ">in"),
             (11, "here"),
-            (12, "caligned"),
+            (12, "abort"),
             (13, "bye"),
             (14, "exit"),
             (15, "+"),
@@ -402,18 +423,18 @@ impl F2 {
             (40, "r>"),
             (41, "r@"),
             (42, "rot"),
-            (43, "if"),
-            (44, "else"),
-            (45, "then"),
-            (46, "begin"),
-            (47, "while"),
-            (48, "again"),
-            (49, "repeat"),
-            (50, "until"),
-            (51, "do"),
-            (52, "loop"),
-            (53, "i"),
-            (54, "j"),
+            (43, "["),
+            (44, "$interpret"),
+            (45, ".ok"),
+            (46, "eval"),
+            (47, "preset"),
+            (48, "quit"),
+            (49, "query"),
+            (50, "token"),
+            (51, "parse"),
+            (52, "(parse)"),
+            (53, "\""),
+            (54, ".\""),
             (55, "'"),
             (56, "execute"),
             (57, ":"),
@@ -432,29 +453,25 @@ impl F2 {
             (70, "immediate"),
             (71, "branch"),
             (72, "branch0"),
+            (73, "if"),
+            (74, "else"),
+            (75, "then"),
+            (66, "begin"),
+            (77, "while"),
+            (78, "again"),
+            (79, "repeat"),
+            (80, "until"),
+            (81, "do"),
+            (82, "loop"),
+            (83, "i"),
+            (84, "j"),
         ];
 
         let mut ptr = self.data[self.here_ptr] as usize;
-        self.data[ptr] = 0; // initial cell is the end of the line
-        self.data[self.here_ptr] += 1; // increment HERE, updated by make_word
         for (code, name) in BUILTIN_CONFIG.iter() {
             ptr = self.make_word(&name, BUILTIN, &[*code]);
         }
 
-        /*             let name = *name;
-
-            self.last_ptr = ptr; // update it to this definition's back pointer
-            ptr += 1; // pointing to length / flag word
-            self.data[ptr] = ((*name).len() as u32 | BUILTIN) as i32; // All need this flag
-            for c in name.chars() {
-                ptr += 1; // next free cell for a character
-                self.data[ptr] = c as i32;
-            }
-            ptr += 1; // now the code word (builtin index)
-            self.data[ptr] = *code; // install the code word
-            ptr += 1; // move ahead to the next address / back pointer
-            self.data[ptr] = self.last_ptr as i32; // install the back pointer for the next word
-        } */
         // record in the HERE variable
         self.data[self.here_ptr] = ptr as i32;
         ptr // now points to the new back pointer
@@ -462,7 +479,6 @@ impl F2 {
 
     fn insert_variables(&mut self) -> usize {
         // install system variables in data area
-
         // hand craft HERE, because it's needed by make_word
         self.data[0] = 0; // null pointer
         self.data[1] = (4 | VARIABLE) as i32; //
@@ -478,19 +494,19 @@ impl F2 {
         for (i, c) in "context".char_indices() {
             self.data[i + 9] = c as i32;
         }
-        self.data[16] = 8;
+        self.data[16] = 8; // value of CONTEXT
         self.data[17] = 7; // back pointer
-        self.context_ptr = 8;
+        self.context_ptr = 16;
         self.data[self.here_ptr] = 17;
 
-        self.base_ptr = self.make_variable("base");
+        self.base_ptr = self.make_variable("base") - 1;
         self.data[self.base_ptr] = 10;
-        self.tmp_ptr = self.make_variable("tmp");
-        self.tib_in_ptr = self.make_variable(">in");
-        self.data[self.tib_in_ptr as usize] = TIB_START as i32;
-        self.hld_ptr = self.make_variable("hld");
-
-        self.last_ptr = self.make_variable("last");
+        self.tmp_ptr = self.make_variable("tmp") - 1;
+        self.tib_in_ptr = self.make_variable(">in") - 1;
+        self.data[self.tib_in_ptr] = TIB_START as i32;
+        self.hld_ptr = self.make_variable("hld") - 1;
+        self.tick_eval_ptr = self.make_variable("'eval"); // value needs to be set before calling EVAL
+        self.last_ptr = self.make_variable("last") - 1;
         self.data[self.here_ptr] as usize
     }
 
