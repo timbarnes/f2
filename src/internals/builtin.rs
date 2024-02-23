@@ -1,10 +1,10 @@
+use crate::engine::PAD_START;
 /// Interpreter for builtins
 ///
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
 use crate::engine::{BUILTIN, STR_START, TF, TIB_START, VARIABLE};
-use crate::{engine::PAD_START, tokenizer::ForthToken};
 
 macro_rules! pop {
     ($self:ident) => {{
@@ -114,11 +114,12 @@ impl TF {
         self.base_ptr = self.u_make_variable("base");
         self.data[self.base_ptr] = 10; // decimal
                                        //self.tmp_ptr = self.make_variable("tmp");
+        self.tib_ptr = self.u_make_variable("'tib");
+        self.data[self.tib_in_ptr] = TIB_START as i64;
         self.tib_size_ptr = self.u_make_variable("#tib");
         self.tib_in_ptr = self.u_make_variable(">in");
         self.data[self.tib_in_ptr as usize] = TIB_START as i64 + 1;
         self.hld_ptr = self.u_make_variable("hld");
-
         self.last_ptr = self.u_make_variable("last");
     }
 
@@ -433,103 +434,5 @@ impl TF {
             "type: print a string using pointer on stack",
         );
         self.u_add("recurse", TF::f_recurse, "recurse")
-    }
-
-    /// ADD SYSTEM VARIABLES
-
-    pub fn add_variables(&mut self) {
-        self.pc_ptr = self.add_variable("pc", 0); // program counter
-        self.compile_ptr = self.add_variable("compile?", 0); // compile mode
-        self.abort_ptr = self.add_variable("abort?", 0); // abort flag
-        self.tib_ptr = self.add_string_var("tib", "");
-        self.tib_size_ptr = self.add_variable("#tib", 0); // length of text input buffer
-        self.tib_in_ptr = self.add_variable(">in", 0); // current position in input buffer
-        self.pad_ptr = self.add_string_var("pad", "");
-        self.eval_ptr = self.add_variable("'eval", 0);
-    }
-
-    fn add_variable(&mut self, name: &str, val: i64) -> usize {
-        self.dictionary
-            .push(ForthToken::Variable(name.to_owned(), val));
-        self.dictionary.len() - 1
-    }
-
-    fn add_string_var(&mut self, name: &str, val: &str) -> usize {
-        self.dictionary
-            .push(ForthToken::StringVar(name.to_owned(), val.to_owned()));
-        self.dictionary.len() - 1
-    }
-
-    pub fn set_var(&mut self, addr: usize, new_val: i64) {
-        // set the variable at addr to val
-        let address = addr.max(0) as usize;
-        if address < self.dictionary.len() {
-            let var = &self.dictionary[addr];
-            match var {
-                ForthToken::Variable(name, _v) => {
-                    self.dictionary[addr] = ForthToken::Variable(name.to_owned(), new_val)
-                }
-                _ => self
-                    .msg
-                    .error("sysvar_set", "Does not point to variable", Some(addr)),
-            }
-        }
-    }
-
-    pub fn get_var(&mut self, addr: usize) -> i64 {
-        // gets the current value of the variable at addr
-        let address = addr.max(0) as usize;
-        if address < self.dictionary.len() {
-            let var = &self.dictionary[addr];
-            match var {
-                ForthToken::Variable(_, value) => *value,
-                _ => {
-                    self.msg
-                        .error("sysvar-get", "Does not point to variable", Some(addr));
-                    self.set_abort_flag(true);
-                    0
-                }
-            }
-        } else {
-            self.set_abort_flag(true);
-            0
-        }
-    }
-
-    pub fn get_string(&mut self, addr: usize) -> String {
-        // gets the current value of the variable at addr
-        let address = addr.max(0) as usize;
-        if address < self.dictionary.len() {
-            let var = &self.dictionary[addr];
-            match var {
-                ForthToken::StringVar(_, value) => value.clone(),
-                _ => {
-                    self.msg
-                        .error("stringvar-get", "Does not point to variable", Some(addr));
-                    self.set_abort_flag(true);
-                    "".to_string()
-                }
-            }
-        } else {
-            self.set_abort_flag(true);
-            "".to_string()
-        }
-    }
-
-    pub fn set_string(&mut self, addr: usize, new_val: &str) {
-        // set the variable at addr to val
-        let address = addr.max(0) as usize;
-        if address < self.dictionary.len() {
-            let var = &self.dictionary[addr];
-            match var {
-                ForthToken::StringVar(name, _v) => {
-                    let name = name.clone();
-                    self.dictionary[addr] = ForthToken::StringVar(name, new_val.to_string())
-                }
-                _ => self
-                    .msg
-                    .error("stringvar_set", "Does not point to variable", Some(addr)),
-            }
-        }
     }
 }

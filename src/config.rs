@@ -116,25 +116,9 @@ impl Config {
         println!("{WELCOME_MESSAGE} Version {VERSION}");
 
         // Enter the interactive loop to read and process input
-        loop {
-            if forth.should_exit() {
-                println!("{EXIT_MESSAGE}");
-                break;
-            }
-
-            // Process one word (in immediate mode), or one definition (compile mode).
-            if forth.process_token() {
-                forth.msg.info("main", "   Stack", Some(&forth.stack));
-                // forth.msg.debug("main", "   Words", &forth.defined_words);
-            } else {
-                // Exit if EOF.
-                println!("End of File. Thank you for using tForth!");
-                break;
-            }
-        }
-    }
-
-    pub fn exit(&self) {
+        // call QUERY to start the r2 engine.
+        forth.f_query();
+        // Exit when query gets a bye or EOF.
         println!("{EXIT_MESSAGE}");
     }
 }

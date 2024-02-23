@@ -42,21 +42,6 @@ macro_rules! push {
         $self.data[$self.stack_ptr] = $val;
     };
 }
-macro_rules! pop1_push1 {
-    // Helper macro
-    ($self:ident, $word:expr, $expression:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $self.stack.push($expression(x));
-        }
-    };
-}
-macro_rules! pop1 {
-    ($self:ident, $word:expr, $code:expr) => {{
-        if let Some(x) = $self.pop_one(&$word) {
-            $code(x)
-        }
-    }};
-}
 
 impl TF {
     /// macros:
@@ -67,7 +52,7 @@ impl TF {
 
     pub fn f_key(&mut self) {
         // get a character and push on the stack
-        let c = self.parser.reader.read_char();
+        let c = self.reader.read_char();
         match c {
             Some(c) => self.stack.push(c as i64),
             None => self
@@ -85,7 +70,7 @@ impl TF {
         if stack_ok!(self, 2, "accept") {
             let dest = pop!(self) as usize;
             let max_len = top!(self);
-            match self.parser.reader.get_line(&"".to_owned(), false) {
+            match self.reader.get_line(&"".to_owned(), false) {
                 Some(line) => {
                     let length = min(line.len() - 1, max_len as usize) as usize;
                     let line_str = &line[..length];
@@ -139,11 +124,17 @@ impl TF {
     }
 
     pub fn f_dot(&mut self) {
-        pop1!(self, ".", |a| print!("{a} "));
+        if stack_ok!(self, 1, ".") {
+            print!("{a} ");
+        }
     }
 
     pub fn f_dot_s(&mut self) {
-        println!("{:?}", self.stack);
+        print!("[");
+        for i in self.stack_ptr..STACK_START {
+            print!("{i}, ");
+        }
+        print!("] ");
     }
 
     pub fn f_cr(&mut self) {
@@ -157,7 +148,7 @@ impl TF {
     }
 
     pub fn f_dot_s_quote(&mut self) {
-        print!("{:?}", self.get_string(self.pad_ptr));
+        print!("{:?}", self.u_get_string(self.pad_ptr));
     }
 
     /// TYPE - print a string, using the string address on the stack

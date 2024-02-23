@@ -1,8 +1,14 @@
 // Debugging help
 
-use crate::engine::TF;
+use crate::engine::{STACK_START, TF};
 use crate::messages::DebugLevel;
-use crate::tokenizer::ForthToken;
+
+macro_rules! push {
+    ($self:ident, $val:expr) => {
+        $self.stack_ptr -= 1;
+        $self.data[$self.stack_ptr] = $val;
+    };
+}
 
 impl TF {
     pub fn f_show_stack(&mut self) {
@@ -13,24 +19,22 @@ impl TF {
         self.show_stack = false;
     }
 
+    /// WORDS ( -- ) Print a list of all defined words
+    ///              Includes definitions, builtins, variables and constants
     pub fn f_words(&mut self) {
-        for word in self.dictionary.iter() {
-            match word {
-                ForthToken::Definition(name, _) => print!("{name} "),
-                _ => {} // ignore other token types
-            }
-        }
-        println!();
+        // walk the definition linked list and print each entry's name
+        println!("words - not implemented");
     }
 
+    /// SEE-ALL ( -- ) Show decompiled versions of all the defined words
     pub fn f_see_all(&mut self) {
-        for i in 0..self.dictionary.len() {
-            self.see_word(i);
-        }
+        println!("see-all - not implemented")
     }
 
+    /// DEPTH - print the number of items on the stack
     pub fn f_stack_depth(&mut self) {
-        self.stack.push(self.stack.len() as i64);
+        let depth = STACK_START - self.stack_ptr;
+        push!(self, depth as i64);
     }
 
     pub fn f_dbg(&mut self) {

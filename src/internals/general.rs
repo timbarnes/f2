@@ -1,6 +1,6 @@
 // General-purpose builtin words
 
-use crate::engine::TF;
+use crate::engine::{STACK_START, TF};
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -34,26 +34,29 @@ macro_rules! push {
 macro_rules! pop2_push1 {
     // Helper macro
     ($self:ident, $word:expr, $expression:expr) => {
-        if let Some((j, k)) = $self.pop_two(&$word) {
-            $self.stack.push($expression(k, j));
+        if stack_ok!($self, 2, $word) {
+            let j = pop!($self);
+            let k = pop!($self);
+            push!($self, $expression(k, j));
         }
     };
 }
 macro_rules! pop1_push1 {
     // Helper macro
     ($self:ident, $word:expr, $expression:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $self.stack.push($expression(x));
+        if stack_ok!($self, 1, $word) {
+            let x = pop!($self);
+            push!(self, $expression(x));
         }
     };
 }
-macro_rules! pop1 {
+/* macro_rules! pop1 {
     ($self:ident, $word:expr, $code:expr) => {
         if let Some(x) = $self.pop_one(&$word) {
             $code(x);
         }
     };
-}
+} */
 
 impl TF {
     pub fn f_plus(&mut self) {
@@ -117,85 +120,73 @@ impl TF {
         }
     }
     pub fn f_drop(&mut self) {
-        pop1!(self, "drop", |_a| ());
+        pop!(self);
     }
     pub fn f_swap(&mut self) {
-        if self.stack.len() > 1 {
-            let a = self.stack[self.stack.len() - 1];
-            let b = self.stack[self.stack.len() - 2];
-            self.stack.pop();
-            self.stack.pop();
-            self.stack.push(a);
-            self.stack.push(b);
-        } else {
-            self.msg
-                .warning("SWAP", "Too few elements on stack.", None::<bool>);
+        if stack_ok!(self, 2, "swap") {
+            let a = pop!(self);
+            let b = pop!(self);
+            push!(self, a);
+            push!(self, b);
         }
     }
     pub fn f_over(&mut self) {
-        if self.stack_underflow("OVER", 2) {
-            self.set_abort_flag(true);
-        } else {
-            let item = self.stack.get(self.stack.len() - 2);
-            match item {
-                Some(item) => {
-                    self.stack.push(*item);
-                }
-                None => {
-                    self.set_abort_flag(true);
-                }
-            }
+        if stack_ok!(self, 2, "over") {
+            let first = pop!(self);
+            let second = pop!(self);
+            push!(self, second);
+            push!(self, first);
+            push!(self, second);
         }
     }
     pub fn f_rot(&mut self) {
-        if self.stack_underflow("ROT", 3) {
-            self.set_abort_flag(true);
-        } else {
-            let top_index = self.stack.len() - 1;
-            let top = self.stack[top_index - 2];
-            let middle = self.stack[top_index];
-            let bottom = self.stack[top_index - 1];
-            self.stack[top_index - 2] = bottom;
-            self.stack[top_index - 1] = middle;
-            self.stack[top_index] = top;
+        if stack_ok!(self, 3, "rot") {
+            let first = pop!(self);
+            let second = pop!(self);
+            let third = pop!(self);
+            push!(self, second);
+            push!(self, first);
+            push!(self, third);
         }
     }
 
     pub fn f_and(&mut self) {
-        if !self.stack_underflow("AND", 2) {
-            if let (Some(a), Some(b)) = (self.stack.pop(), self.stack.pop()) {
-                self.stack.push(a & b);
-            }
+        if stack_ok!(self, 2, "and") {
+            let a = pop!(self);
+            let b = pop!(self);
+            push!(self, a & b);
         }
     }
 
     pub fn f_or(&mut self) {
-        if !self.stack_underflow("OR", 2) {
-            if let (Some(a), Some(b)) = (self.stack.pop(), self.stack.pop()) {
-                self.stack.push(a | b);
-            }
+        if stack_ok!(self, 2, "or") {
+            let a = pop!(self);
+            let b = pop!(self);
+            push!(self, (a as usize | b as usize) as i64);
         }
     }
 
     pub fn f_get(&mut self) {
-        if !self.stack_underflow("@", 1) {
-            if let Some(adr) = self.stack.pop() {
-                let value = self.get_var(adr as usize);
-                self.stack.push(value as i64);
-            }
+        if stack_ok!(self, 1, "@") {
+            let addr = pop!(self);
+            push!(self, self.data[addr as usize]);
         }
     }
 
     pub fn f_store(&mut self) {
-        if !self.stack_underflow("!", 2) {
-            if let (Some(addr), Some(val)) = (self.stack.pop(), self.stack.pop()) {
-                self.set_var(addr as usize, val);
-            }
+        if stack_ok!(self, 2, "!") {
+            let addr = pop!(self);
+            let value = pop!(self);
+            self.data[addr as usize] = value;
         }
     }
 
     pub fn f_to_r(&mut self) {
-        pop1!(self, ">r", |n| self.return_stack.push(n));
+        if stack_ok!(self, 1, ">r") {
+            let value = pop!(self);
+            self.return_ptr -= 1;
+            self.data[self.return_ptr] = value;
+        }
     }
 
     pub fn f_r_from(&mut self) {

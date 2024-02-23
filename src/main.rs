@@ -5,7 +5,7 @@ mod config;
 mod engine;
 mod messages;
 mod reader;
-mod tokenizer;
+//mod tokenizer;
 mod internals;
 
 use config::Config;
@@ -16,7 +16,5 @@ fn main() {
 
     if config.run {
         config.run_forth();
-    } else {
-        config.exit()
     }
 }
