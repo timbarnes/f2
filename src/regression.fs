@@ -14,48 +14,36 @@ variable test-num 0 test-num !
   Relies on a variable test-num that indicates the number of the test. )
 
 variable test-num 0 test-num !
-: test-none ( .. -- ) stack-depth 1 test-num +! 
-    0= if test-num ? ."  Passed" else ."    Failed" test-num @ then ;
+: test-none ( .. -- ) depth 1 test-num +!
+    0= if test-num ? ."  Passed" else ."    Failed" test-num @ then cr ;
 
-: test-single ( m n.. -- b ) 1 test-num +! 
-    = if test-num ? ."  Passed" else ."    Failed"  test-num @ then  ;
+: test-single ( m n.. -- b ) 1 test-num +!
+    = if test-num ? ."  Passed" else ."    Failed"  test-num @ then  cr ;
 
 : test-dual ( j k n.. -- b ) 1 test-num +!
     rot = 
     rot rot = 
-    and if test-num ? ."  Passed" else ."    Failed" test-num @ then ;
+    and if test-num ? ."  Passed" else ."    Failed" test-num @ then cr ;
 
-: test-results stack-depth 0= if ." All tests passed!" else ." The following tests failed: " .s clear then ;
+: test-results depth 0= if ." All tests passed!" else ." The following tests failed: " .s clear then ;
 
-: loop-test do i loop ;
+: loop-test for i next ;
 : nested-loop-test 
-    do 
-        6 4 do 
+    for 
+        3 for 
             i . j .
-            loop i . 
+            next i . 
         i 
-    loop ;
+    next ;
 
-: loop+test do i dup dup . +loop ;
-
-: leave-test 
-    do 
-        i dup 
-        if 
-            ." inner" 
-        else 
-            ." leaving" leave 
-        then 
-            i . 
-    loop ;
 
 ."         Clear has to be the first test"
 1 2 3 4 5 clear test-none
 
 ."         Debugger"
-1 1 1 dbg test-single ." warnings and errors"
-1 1 2 dbg test-single ." info, warnings and errors"
-1 1 3 dbg test-single ." debug, info, warnings and errors"
+\1 1 1 dbg test-single ." warnings and errors"
+\1 1 2 dbg test-single ." info, warnings and errors"
+\1 1 3 dbg test-single ." debug, info, warnings and errors"
 1 1 0 dbg test-single ." quiet mode (errors only)"
 1 1 4 dbg test-single ." invalid value 4"
 1 1 -4 dbg test-single ." invalid value -4"
@@ -69,14 +57,11 @@ variable test-num 0 test-num !
 1 1 45 emit test-single
 
 ."                Loop tests"
-0 21 7 0 loop-test + + + + + test-dual
-1 6 4 1 nested-loop-test * test-dual
-1 -2 1 loop-test test-single
-3 15 7 3 loop-test + + test-dual
-0 0 0 loop-test test-single
-1 64 10 1 loop+test * * test-dual
--1 0 5 -1 leave-test test-dual
-
+ 7 21 7 loop-test + + + + + + test-dual
+ 4 2 4 nested-loop-test - - - test-dual
+ 55 -2 loop-test 55 test-single
+3 3 3 loop-test + + test-dual
+0 0 loop-test test-single
 
 ."         Arithmetic"
 5 1 4 + test-single

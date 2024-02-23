@@ -1,14 +1,12 @@
-// Provide read-line, key, key? emit and cr
-//
-// Prompts can be implemented in forth
-// Minimize error handling and messaging.
+// Read tokens from a file or stdin, one line at a time.
+// Return one space-delimited token at a time.
+// Cache the remainder of the line.
 
-use crate::messages::Msg;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 
-// use crate::messages::{DebugLevel, Msg};
+use crate::messages::{DebugLevel, Msg};
 
 #[derive(Debug)]
 enum Source {
@@ -17,7 +15,9 @@ enum Source {
 }
 
 pub struct Reader {
-    source: Source, // Stdin or a file
+    source: Source,      // Stdin or a file
+    prompt: String,      // the standard prompt
+    cont_prompt: String, // the continuation prompt
     msg: Msg,
 }
 
@@ -30,25 +30,35 @@ impl fmt::Debug for Reader {
 impl Reader {
     pub fn new(
         file_path: Option<&std::path::PathBuf>,
-        // cont_prompt: &str,
-        msg: Msg,
+        prompt: &str,
+        cont_prompt: &str,
+        msg_handler: Msg,
     ) -> Option<Reader> {
-        //message_handler.set_level(DebugLevel::Error);
+        // Initialize a tokenizer.
+        let mut message_handler = Msg::new();
+        message_handler.set_level(DebugLevel::Error);
         match file_path {
             None => Some(Reader {
                 source: Source::Stdin,
-                msg,
+                prompt: prompt.to_owned(),
+                cont_prompt: cont_prompt.to_owned(),
+                msg: msg_handler,
             }),
             Some(filepath) => {
                 let file = File::open(filepath);
                 match file {
                     Ok(file) => Some(Reader {
                         source: Source::Stream(BufReader::new(file)),
-                        // cont_prompt: cont_prompt.to_owned(),
-                        msg,
+                        prompt: prompt.to_owned(),
+                        cont_prompt: cont_prompt.to_owned(),
+                        msg: msg_handler,
                     }),
                     Err(_) => {
-                        msg.error("Reader::new", "File not able to be opened", Some(file_path));
+                        msg_handler.error(
+                            "Reader::new",
+                            "File not able to be opened",
+                            Some(file_path),
+                        );
                         None
                     }
                 }
@@ -56,67 +66,47 @@ impl Reader {
         }
     }
 
-    pub fn read_line(&mut self) -> Result<String, &str> {
+    pub fn get_line(&mut self, current_stack: &String, multiline: bool) -> Option<String> {
         // Read a line, storing it if there is one
         // In interactive (stdin) mode, blocks until the user provides a line.
-        // Returns Ok(line text). None indicates the read failed.
+        // Returns Option(line text). None indicates the read failed.
         let mut new_line = String::new();
+        let result;
         match self.source {
             Source::Stdin => {
-                // Issue prompt
-                print!("Ok> ");
+                if multiline {
+                    print!("{}", self.cont_prompt);
+                } else {
+                    print!("{} {}", current_stack, self.prompt);
+                }
                 io::stdout().flush().unwrap();
-                // Read from Stdin
-                match io::stdin().read_line(&mut new_line) {
-                    Ok(_) => {
-                        self.msg
-                            .debug("get_line", "Got some values", Some(&new_line));
-                        Ok(new_line)
-                    }
-                    Err(error) => {
-                        self.msg
-                            .error("get_line", "read_line error", Some(error.to_string()));
-                        Err("read_line error")
-                    }
+                result = io::stdin().read_line(&mut new_line);
+            }
+            Source::Stream(ref mut file) => result = file.read_line(&mut new_line),
+        }
+        match result {
+            Ok(chars) => {
+                if chars > 0 {
+                    Some(new_line)
+                } else {
+                    None
                 }
             }
-            Source::Stream(ref mut file) => {
-                // Read from a file. TokenSource is a BufReader. No prompts
+            Err(e) => {
                 self.msg
-                    .debug("get_line", "Reading from file", None::<bool>);
-                let chars_read = &file.read_line(&mut new_line);
-                match chars_read {
-                    Ok(chars) => {
-                        if *chars > 0 {
-                            Ok(new_line)
-                        } else {
-                            Err("No more lines")
-                        }
-                    }
-                    Err(_) => Err("read_line error"),
-                }
+                    .error("get_line", "read_line error", Some(e.to_string()));
+                None
             }
         }
     }
 
-    pub fn key(&self) -> Result<u8, String> {
-        // get a single character from the input line
+    pub fn read_char(&self) -> Option<char> {
         let mut buf = [0; 1];
         let mut handle = io::stdin().lock();
         let bytes_read = handle.read(&mut buf);
         match bytes_read {
-            Ok(_size) => Ok(buf[0].clone()),
-            Err(_) => Err("No characters read".to_owned()),
-        }
-    }
-
-    pub fn key_available(&self) -> bool {
-        // KEY? return true if there's a key available
-        let mut bytes = io::stdin().bytes();
-        if let Some(Ok(_)) = bytes.next() {
-            true
-        } else {
-            false
+            Ok(_size) => Some(buf[0] as char),
+            Err(_) => None,
         }
     }
 }
