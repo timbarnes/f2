@@ -1,6 +1,6 @@
 // General-purpose builtin words
 
-use crate::engine::{STACK_START, TF};
+use crate::engine::{FALSE, STACK_START, TF, TRUE};
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -46,7 +46,7 @@ macro_rules! pop1_push1 {
     ($self:ident, $word:expr, $expression:expr) => {
         if stack_ok!($self, 1, $word) {
             let x = pop!($self);
-            push!(self, $expression(x));
+            push!($self, $expression(x));
         }
     };
 }
@@ -57,6 +57,14 @@ macro_rules! pop1_push1 {
         }
     };
 } */
+
+pub fn u_is_integer(s: &str) -> bool {
+    s.parse::<i64>().is_ok()
+}
+
+pub fn u_is_float(s: &str) -> bool {
+    s.parse::<f64>().is_ok()
+}
 
 impl TF {
     pub fn f_plus(&mut self) {
@@ -84,11 +92,11 @@ impl TF {
     }
 
     pub fn f_true(&mut self) {
-        self.stack.push(-1);
+        push!(self, TRUE);
     }
 
     pub fn f_false(&mut self) {
-        self.stack.push(0);
+        push!(self, FALSE);
     }
 
     pub fn f_equal(&mut self) {
@@ -104,7 +112,7 @@ impl TF {
     }
 
     pub fn f_clear(&mut self) {
-        self.stack.clear()
+        self.stack_ptr = STACK_START;
     }
 
     pub fn f_bye(&mut self) {
@@ -112,15 +120,15 @@ impl TF {
     }
 
     pub fn f_dup(&mut self) {
-        if let Some(top) = self.stack.last() {
-            self.stack.push(*top);
-        } else {
-            self.msg
-                .warning("DUP", "Error - DUP: Stack is empty.", None::<bool>);
+        if stack_ok!(self, 1, "dup") {
+            let top = top!(self);
+            push!(self, top);
         }
     }
     pub fn f_drop(&mut self) {
-        pop!(self);
+        if stack_ok!(self, 1, "drop") {
+            pop!(self);
+        }
     }
     pub fn f_swap(&mut self) {
         if stack_ok!(self, 2, "swap") {
@@ -210,7 +218,7 @@ impl TF {
         if self.return_stack.is_empty() {
             self.msg.warning(
                 "I",
-                "Can only be used inside a DO .. LOOP structure",
+                "Can only be used inside a FOR .. NEXT structure",
                 None::<bool>,
             );
         } else {

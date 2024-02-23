@@ -125,6 +125,7 @@ impl TF {
 
     pub fn f_dot(&mut self) {
         if stack_ok!(self, 1, ".") {
+            let a = pop!(self);
             print!("{a} ");
         }
     }

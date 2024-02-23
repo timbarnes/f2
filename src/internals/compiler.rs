@@ -4,7 +4,7 @@ use crate::engine::{
     ADDRESS_MASK, BUILTIN, CONSTANT, DEFINITION, FALSE, IMMEDIATE_MASK, LITERAL, STACK_START,
     STRING, TF, TRUE, VARIABLE,
 };
-use crate::tokenizer::u_is_integer;
+use crate::internals::general::u_is_integer;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -221,9 +221,9 @@ impl TF {
         self.f_find(); // look for it
         if top!(self) == FALSE {
             // write an error message
-            let mut msg = self.get_string(self.pad_ptr);
+            let mut msg = self.u_get_string(self.pad_ptr);
             msg = format!("Word not found: {}", msg);
-            self.set_string(self.pad_ptr, &msg);
+            self.u_set_string(self.pad_ptr, &msg);
             push!(self, self.pad_ptr as i64);
             self.f_type(); // a warning message
         }
@@ -343,6 +343,15 @@ impl TF {
             push!(self, self.strings[i] as i64);
         }
         result
+    }
+
+    /// Save a counted string to a Forth string address
+    pub fn u_set_string(&mut self, addr: usize, string: &str) {
+        let str_addr = addr & ADDRESS_MASK;
+        self.strings[str_addr] = string.len() as u8 as char; // count byte
+        for (i, c) in string.chars().enumerate() {
+            self.strings[str_addr + i + 1] = c;
+        }
     }
 
     /// copy a string from a text buffer to a counted string
