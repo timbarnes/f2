@@ -80,7 +80,7 @@ impl Config {
         // create and run the interpreter
         // return when finished
 
-        let mut forth = TF::new("Ok ", ">  ");
+        let mut forth = TF::new("Ok ");
         forth.cold_start();
 
         forth.msg.set_level(self.debug_level.clone());
@@ -117,7 +117,7 @@ impl Config {
 
         // Enter the interactive loop to read and process input
         // call QUERY to start the r2 engine.
-        forth.f_query();
+        forth.f_quit();
         // Exit when query gets a bye or EOF.
         println!("{EXIT_MESSAGE}");
     }

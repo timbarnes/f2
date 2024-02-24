@@ -27,8 +27,10 @@ macro_rules! stack_ok {
 }
 macro_rules! pop {
     ($self:ident) => {{
+        let r = $self.data[$self.stack_ptr];
+        $self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
-        $self.data[$self.stack_ptr - 1]
+        r
     }};
 }
 macro_rules! top {
@@ -65,17 +67,18 @@ impl TF {
     ///
     /// Read up to u characters, storing them at string address b.
     /// Return the start of the string, and the number of characters read.
+    /// Typically writes a counted string to the TIB, in which case,
+    /// it needs TIB_START and BUF_SIZE - 1 on the stack.
     ///
     pub fn f_accept(&mut self) {
         if stack_ok!(self, 2, "accept") {
-            let dest = pop!(self) as usize;
-            let max_len = top!(self);
-            match self.reader.get_line(&"".to_owned(), false) {
+            let max_len = pop!(self);
+            let dest = top!(self) as usize;
+            match self.reader.get_line() {
                 Some(line) => {
                     let length = min(line.len() - 1, max_len as usize) as usize;
                     let line_str = &line[..length];
-                    let length = line.len();
-                    self.u_save_string(line_str, dest, length); // write a counted string
+                    self.u_save_string(line_str, dest); // write a counted string
                     push!(self, length as i64);
                 }
                 None => {
@@ -87,10 +90,14 @@ impl TF {
         }
     }
 
+    /// QUERY ( -- ) Load a new line of text into the TIB
     pub fn f_query(&mut self) {
-        push!(self, self.tib_ptr as i64);
-        push!(self, BUF_SIZE as i64);
+        push!(self, self.data[self.tib_ptr]);
+        push!(self, BUF_SIZE as i64 - 1);
         self.f_accept();
+        self.data[self.tib_size_ptr] = pop!(self); // update the TIB size pointer
+        self.data[self.tib_in_ptr] = 1; // set the starting point in the TIB
+        pop!(self); // we don't need the address
     }
 
     // output
@@ -131,11 +138,11 @@ impl TF {
     }
 
     pub fn f_dot_s(&mut self) {
-        print!("[");
+        print!("[ ");
         for i in self.stack_ptr..STACK_START {
-            print!("{i}, ");
+            print!("{} ", self.data[i]);
         }
-        print!("] ");
+        println!("] ");
     }
 
     pub fn f_cr(&mut self) {

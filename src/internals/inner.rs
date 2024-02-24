@@ -6,8 +6,10 @@ use crate::engine::TF;
 
 macro_rules! pop {
     ($self:ident) => {{
+        let r = $self.data[$self.stack_ptr];
+        $self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
-        $self.data[$self.stack_ptr - 1]
+        r
     }};
 }
 macro_rules! top {

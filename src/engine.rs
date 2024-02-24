@@ -104,8 +104,8 @@ pub enum FileMode {
 
 impl TF {
     // ForthInterpreter struct implementations
-    pub fn new(main_prompt: &str, multiline_prompt: &str) -> TF {
-        if let Some(reader) = Reader::new(None, main_prompt, multiline_prompt, Msg::new()) {
+    pub fn new(main_prompt: &str) -> TF {
+        if let Some(reader) = Reader::new(None, main_prompt, Msg::new()) {
             TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
@@ -146,22 +146,23 @@ impl TF {
         self.u_insert_variables();
         //self.f_insert_builtins();
         self.add_builtins();
+        self.set_var(self.compile_ptr, FALSE);
         self.u_insert_code();
     }
 
     /// get_var returns the value of a defined variable from its pointer address
     pub fn get_var(&mut self, addr: usize) -> i64 {
-        self.data[addr]
+        self.data[addr + 1]
     }
 
     /// set_var returns the value of a defined variable from its pointer address
     pub fn set_var(&mut self, addr: usize, val: i64) {
-        self.data[addr] = val;
+        self.data[addr + 1] = val;
     }
 
     /// get_compile_mode *** needs to work with 'EVAL contents
     pub fn get_compile_mode(&mut self) -> bool {
-        if self.get_var(self.compile_ptr) == 0 {
+        if self.get_var(self.compile_ptr) == FALSE {
             false
         } else {
             true

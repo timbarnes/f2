@@ -15,9 +15,8 @@ enum Source {
 }
 
 pub struct Reader {
-    source: Source,      // Stdin or a file
-    prompt: String,      // the standard prompt
-    cont_prompt: String, // the continuation prompt
+    source: Source, // Stdin or a file
+    prompt: String, // the standard prompt
     msg: Msg,
 }
 
@@ -31,7 +30,6 @@ impl Reader {
     pub fn new(
         file_path: Option<&std::path::PathBuf>,
         prompt: &str,
-        cont_prompt: &str,
         msg_handler: Msg,
     ) -> Option<Reader> {
         // Initialize a tokenizer.
@@ -41,7 +39,6 @@ impl Reader {
             None => Some(Reader {
                 source: Source::Stdin,
                 prompt: prompt.to_owned(),
-                cont_prompt: cont_prompt.to_owned(),
                 msg: msg_handler,
             }),
             Some(filepath) => {
@@ -50,7 +47,6 @@ impl Reader {
                     Ok(file) => Some(Reader {
                         source: Source::Stream(BufReader::new(file)),
                         prompt: prompt.to_owned(),
-                        cont_prompt: cont_prompt.to_owned(),
                         msg: msg_handler,
                     }),
                     Err(_) => {
@@ -66,7 +62,7 @@ impl Reader {
         }
     }
 
-    pub fn get_line(&mut self, current_stack: &String, multiline: bool) -> Option<String> {
+    pub fn get_line(&mut self) -> Option<String> {
         // Read a line, storing it if there is one
         // In interactive (stdin) mode, blocks until the user provides a line.
         // Returns Option(line text). None indicates the read failed.
@@ -74,11 +70,7 @@ impl Reader {
         let result;
         match self.source {
             Source::Stdin => {
-                if multiline {
-                    print!("{}", self.cont_prompt);
-                } else {
-                    print!("{} {}", current_stack, self.prompt);
-                }
+                print!("{} ", self.prompt);
                 io::stdout().flush().unwrap();
                 result = io::stdin().read_line(&mut new_line);
             }
