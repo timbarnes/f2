@@ -86,10 +86,6 @@ pub struct TF {
     exit_flag: bool, // set when the "bye" word is executed.
     pub msg: Msg,
     pub reader: Reader,
-    //pub parser: Tokenizer,
-    new_word_name: String,
-    new_word_definition: Vec<OpCode>,
-    //token_ptr: (usize, ForthToken),
     pub show_stack: bool, // show the stack at the completion of a line of interaction
     pub step_mode: bool,
 }
@@ -132,8 +128,6 @@ impl TF {
                 exit_flag: false,
                 msg: Msg::new(),
                 reader: reader,
-                new_word_name: String::new(),
-                new_word_definition: Vec::new(),
                 show_stack: true,
                 step_mode: false,
             }

@@ -240,16 +240,22 @@ impl TF {
         self.here_ptr += 2;
     }
 
-    /// UNIQUE? (s -- a | F )
+    /// UNIQUE? (s -- s )
     /// Checks the dictionary to see if the word pointed to is defined.
     pub fn f_q_unique(&mut self) {
         self.f_find();
+        let result = pop!(self);
+        if result == TRUE {
+            self.msg
+                .warning("unique?", "Overwriting existing definition", None::<bool>);
+        }
+        pop!(self);
+        pop!(self);
     }
 
-    /// ' (TICK) <name> (b n -- a | 0 )
+    /// ' (TICK) <name> ( -- a | FALSE )
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
-    /// builtin addresses have been bumped up by 1000 to distinguish them
     /// Pushes 0 if not found
     pub fn f_tick(&mut self) {
         // *** get a string from the user (via TEXT?) and put addr on stack
