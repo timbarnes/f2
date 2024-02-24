@@ -1,27 +1,20 @@
-// f2 main program
+// Tforth main program
+// Version 0.1
 
 mod config;
-mod doc;
-mod f2;
+mod engine;
 mod messages;
 mod reader;
+//mod tokenizer;
+mod internals;
 
 use config::Config;
 
 fn main() {
-    let config = Config::new();
-    match config {
-        Ok(cfg) => {
-            let mut configuration = cfg;
-            configuration.process_args();
-            if configuration.run {
-                configuration.run_forth();
-            } else {
-                configuration.exit();
-            }
-        }
-        Err(e) => {
-            println!("Failed to initialize: {}", e);
-        }
+    let mut config = Config::new();
+    config.process_args();
+
+    if config.run {
+        config.run_forth();
     }
 }

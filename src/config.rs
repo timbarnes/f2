@@ -1,37 +1,33 @@
 // system configuration and command line processing
 
-use crate::f2::F2;
+use crate::engine::TF;
+use crate::messages::DebugLevel;
+
 use ::clap::{arg, Command};
 
-const VERSION: &str = "alpha.24.2.9";
-const WELCOME_MESSAGE: &str = "Welcome to f2.";
+const VERSION: &str = "alpha.24.2.20";
+const WELCOME_MESSAGE: &str = "Welcome to tForth.";
 const EXIT_MESSAGE: &str = "Finished";
-const DEFAULT_CORE: [&str; 2] = ["~/.f2/corelib.fs", "src/f2.fs"];
+const DEFAULT_CORE: [&str; 2] = ["~/.tforth/corelib.fs", "src/corelib.fs"];
 
 pub struct Config {
-    // debug_level: DebugLevel,
+    debug_level: DebugLevel,
     loaded_file: String,
     loaded_core: bool,
     core_file: String,
     no_core: bool,
     pub run: bool,
-    forth: F2,
 }
 
 impl Config {
-    pub fn new() -> Result<Config, String> {
-        let fth = F2::new();
-        match fth {
-            Ok(f2) => Ok(Config {
-                // debug_level: DebugLevel::Error,
-                loaded_file: "".to_owned(),
-                loaded_core: false,
-                core_file: DEFAULT_CORE[0].to_owned(),
-                no_core: false,
-                run: true,
-                forth: f2,
-            }),
-            Err(e) => Err(format!("Failed to initialize f2: {}", e).to_owned()),
+    pub fn new() -> Config {
+        Config {
+            debug_level: DebugLevel::Error,
+            loaded_file: "".to_owned(),
+            loaded_core: false,
+            core_file: DEFAULT_CORE[0].to_owned(),
+            no_core: false,
+            run: true,
         }
     }
 
@@ -52,6 +48,16 @@ impl Config {
             .arg(arg!(-f --file <VALUE>).required(false))
             .arg(arg!(-n - -nocore).required(false))
             .get_matches();
+
+        let debuglevel = arguments.get_one::<String>("debuglevel");
+        if let Some(debuglevel) = debuglevel {
+            match debuglevel.as_str() {
+                "debug" => self.debug_level = DebugLevel::Debug,
+                "info" => self.debug_level = DebugLevel::Info,
+                "warning" => self.debug_level = DebugLevel::Warning,
+                _ => self.debug_level = DebugLevel::Warning,
+            }
+        }
 
         let library = arguments.get_one::<String>("library");
         if let Some(lib) = library {
@@ -74,46 +80,45 @@ impl Config {
         // create and run the interpreter
         // return when finished
 
-        let f2 = F2::new();
-        match f2 {
-            Ok(fth) => {
-                let mut forth = fth;
-                forth.init();
+        let mut forth = TF::new("Ok ");
+        forth.cold_start();
 
-                if !self.no_core {
-                    for path in DEFAULT_CORE {
-                        if forth.f2_load_file(&path.to_owned()) {
-                            break;
-                        }
-                    }
-                }
-                if self.loaded_file != "" {
-                    if !forth.f2_load_file(&self.loaded_file) {
-                        println!("Couldn't load file {}", &self.loaded_file);
-                    }
-                }
+        forth.msg.set_level(self.debug_level.clone());
 
-                // forth.set_abort_flag(false); // abort flag may have been set by load_file, but is no longer needed.
-
-                println!("{WELCOME_MESSAGE} Version {VERSION}");
-
-                // Enter the interactive loop to read and process input
-                loop {
-                    if forth.should_exit() {
-                        println!("{EXIT_MESSAGE}");
-                        break;
-                    }
-
-                    // Process one word (in immediate mode), or one definition (compile mode).
-                    forth.run();
+        if !self.no_core {
+            for path in DEFAULT_CORE {
+                if forth.load_file(&path.to_owned()) {
+                    self.loaded_core = true;
+                    forth
+                        .msg
+                        .info("MAIN", "Loaded core dictionary", Some(&self.core_file));
+                    break;
                 }
             }
-            Err(e) => println!("{}", e),
+            if !self.loaded_core {
+                forth.msg.error(
+                    "MAIN",
+                    "Unable to load core dictionary",
+                    Some(&self.core_file),
+                );
+            }
         }
-        // forth.msg.set_level(self.debug_level.clone());
-    }
+        if self.loaded_file != "" {
+            if !forth.load_file(&self.loaded_file) {
+                forth
+                    .msg
+                    .error("MAIN", "Unable to load userfile", Some(&self.loaded_file));
+            }
+        }
 
-    pub fn exit(&self) {
+        forth.set_abort_flag(false); // abort flag may have been set by load_file, but is no longer needed.
+
+        println!("{WELCOME_MESSAGE} Version {VERSION}");
+
+        // Enter the interactive loop to read and process input
+        // call QUERY to start the r2 engine.
+        forth.f_quit();
+        // Exit when query gets a bye or EOF.
         println!("{EXIT_MESSAGE}");
     }
 }
