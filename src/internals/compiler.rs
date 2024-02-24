@@ -9,7 +9,7 @@ use crate::internals::general::u_is_integer;
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
         if $self.stack_ptr <= STACK_START - $n {
-            $self.f_dot_s();
+            // $self.f_dot_s();
             true
         } else {
             $self.msg.error($caller, "Stack underflow", None::<bool>);
@@ -73,10 +73,11 @@ impl TF {
             if self.should_exit() {
                 break;
             } else {
+                self.f_flush();
                 self.f_query();
-                self.f_dot_s();
                 self.f_eval(); // interpret the contents of the line
-                println!("ok");
+                print!("ok ");
+                self.f_flush();
             }
         }
     }
@@ -87,6 +88,11 @@ impl TF {
         if stack_ok!(self, 1, "execute") {
             // call the appropriate inner interpreter
             let xt = pop!(self);
+            /*             println!(
+                "Executing word code {}, opcode {}",
+                self.data[xt as usize],
+                self.data[xt as usize + 1]
+            ); */
             match self.data[xt as usize] {
                 BUILTIN => self.i_builtin(xt + 1),
                 VARIABLE => self.i_variable(xt + 1),
@@ -158,13 +164,9 @@ impl TF {
             if pop!(self) == TRUE {
                 // we have a definition
                 let cfa = pop!(self);
-                let nfa = pop!(self);
-                if (nfa as usize | IMMEDIATE_MASK) != 0 {
-                    self.f_d_interpret();
-                } else {
-                    push!(self, cfa);
-                    self.f_execute();
-                }
+                let _nfa = pop!(self);
+                push!(self, cfa);
+                self.f_execute();
             } else {
                 // try number?
                 self.f_number_q(); // ( s -- n T | a F )
@@ -183,10 +185,10 @@ impl TF {
     /// FIND (s -- nfa, cfa, T | s F ) Search the dictionary for the token indexed through s.
     /// If not found, return the string address so NUMBER? can look at it
     pub fn f_find(&mut self) {
-        let mut result = false;
-        let source_addr = pop!(self) as usize;
-        let mut link = self.data[self.here_ptr] as usize - 1;
         if stack_ok!(self, 1, "find") {
+            let mut result = false;
+            let source_addr = pop!(self) as usize;
+            let mut link = self.data[self.here_ptr] as usize - 1;
             link = self.data[link] as usize; // go back to the beginning of the top word
             while link > 0 {
                 // name field is immediately after the link
@@ -200,14 +202,16 @@ impl TF {
                 }
                 link = self.data[link] as usize;
             }
-        }
-        if result {
-            push!(self, link as i64 + 1);
-            push!(self, link as i64 + 2);
-            push!(self, TRUE);
+            if result {
+                push!(self, link as i64 + 1);
+                push!(self, link as i64 + 2);
+                push!(self, TRUE);
+            } else {
+                push!(self, source_addr as i64);
+                push!(self, FALSE);
+            }
         } else {
-            push!(self, source_addr as i64);
-            push!(self, FALSE);
+            // stack error
         }
     }
 
@@ -281,20 +285,27 @@ impl TF {
             let in_p = pop!(self);
             // traverse the string, dropping leading delim characters
             // in_p points *into* a string, so no count field
-            let start = in_p as usize;
-            let end = start + buf_len as usize;
-            let mut i = start as usize;
-            let mut j = i;
-            while self.strings[i] == delim && i < end {
-                i += 1;
+            if in_p < buf_len {
+                let start = in_p as usize;
+                let end = start + buf_len as usize;
+                let mut i = start as usize;
+                let mut j = i;
+                while self.strings[i] == delim && i < end {
+                    i += 1;
+                }
+                j = i;
+                while j < end && self.strings[j] != delim {
+                    j += 1;
+                }
+                push!(self, in_p);
+                push!(self, (j - i) as i64);
+                push!(self, i as i64);
+            } else {
+                // nothing left to read
+                push!(self, in_p);
+                push!(self, 0);
+                push!(self, 0);
             }
-            j = i;
-            while j < end && self.strings[j] != delim {
-                j += 1;
-            }
-            push!(self, in_p);
-            push!(self, (j - i) as i64);
-            push!(self, i as i64);
         }
     }
 
@@ -342,7 +353,7 @@ impl TF {
                         false,
                     );
                 }
-                self.data[self.tib_in_ptr] += delta + length;
+                self.data[self.tib_in_ptr] += delta + length - 1;
                 push!(self, self.data[self.pad_ptr]);
                 push!(self, length);
             }

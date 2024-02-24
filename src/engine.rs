@@ -141,7 +141,7 @@ impl TF {
         //self.f_insert_builtins();
         self.add_builtins();
         self.set_var(self.compile_ptr, FALSE);
-        self.u_insert_code();
+        self.u_insert_code(); // allows forth code to be run prior to presenting a prompt.
     }
 
     /// get_var returns the value of a defined variable from its pointer address

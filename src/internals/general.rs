@@ -70,7 +70,11 @@ pub fn u_is_float(s: &str) -> bool {
 
 impl TF {
     pub fn f_plus(&mut self) {
-        pop2_push1!(self, "+", |a, b| a + b);
+        if stack_ok!(self, 2, "+") {
+            let a = pop!(self);
+            let b = pop!(self);
+            push!(self, a + b);
+        };
     }
 
     pub fn f_minus(&mut self) {

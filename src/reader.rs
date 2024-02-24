@@ -70,7 +70,7 @@ impl Reader {
         let result;
         match self.source {
             Source::Stdin => {
-                print!("{} ", self.prompt);
+                //print!("{} ", self.prompt);
                 io::stdout().flush().unwrap();
                 result = io::stdin().read_line(&mut new_line);
             }
