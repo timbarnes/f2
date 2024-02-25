@@ -76,6 +76,9 @@ impl TF {
                 // self.f_flush();
                 self.f_query();
                 self.f_eval(); // interpret the contents of the line
+                if self.show_stack {
+                    self.f_dot_s();
+                }
                 print!(" ok ");
                 self.f_flush();
             }
@@ -313,7 +316,7 @@ impl TF {
     pub fn f_text(&mut self) {
         push!(self, ' ' as u8 as i64);
         self.f_parse();
-        println!("Found a token with length {}", top!(self));
+        //p rintln!("Found a token with length {}", top!(self));
     }
 
     /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD

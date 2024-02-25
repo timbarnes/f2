@@ -139,10 +139,10 @@ impl TF {
 
     pub fn f_dot_s(&mut self) {
         print!("[ ");
-        for i in self.stack_ptr..STACK_START {
+        for i in (self.stack_ptr..STACK_START).rev() {
             print!("{} ", self.data[i]);
         }
-        println!("] ");
+        print!("] ");
     }
 
     pub fn f_cr(&mut self) {
