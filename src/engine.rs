@@ -119,12 +119,12 @@ impl TF {
 
     /// get_var returns the value of a defined variable from its pointer address
     pub fn get_var(&mut self, addr: usize) -> i64 {
-        self.data[addr + 1]
+        self.data[addr]
     }
 
     /// set_var returns the value of a defined variable from its pointer address
     pub fn set_var(&mut self, addr: usize, val: i64) {
-        self.data[addr + 1] = val;
+        self.data[addr] = val;
     }
 
     /// get_compile_mode *** needs to work with 'EVAL contents

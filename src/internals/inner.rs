@@ -41,7 +41,7 @@ impl TF {
     ///    [ index of i_variable ] [ index of builtin ] in a compiled word
     ///
     pub fn i_variable(&mut self, val: i64) {
-        push!(self, val + 1); // address of the value
+        push!(self, val); // address of the value
     }
 
     /// Places the value of the adjacent constant on the stack
@@ -49,7 +49,7 @@ impl TF {
     ///    [ index of i_constant ] [ constant value ] in a compiled word
     ///
     pub fn i_constant(&mut self, val: i64) {
-        push!(self, self.data[val as usize + 1]);
+        push!(self, self.data[val as usize]);
     }
 
     /// Places the number in data[d] on the stack
@@ -57,7 +57,7 @@ impl TF {
     ///    [ index of i_literal ] [ number ] in a compiled word
     ///
     pub fn i_literal(&mut self, lit: i64) {
-        push!(self, self.data[lit as usize + 1]);
+        push!(self, self.data[lit as usize]);
     }
 
     /// Places the address (in string space) of the adjacent string on the stack
@@ -65,7 +65,7 @@ impl TF {
     ///    [ i_string ] [ index into string space ] in a compiled word
     ///
     pub fn i_string(&mut self, ptr: i64) {
-        push!(self, ptr + 1);
+        push!(self, ptr);
     }
 
     /// Loops through the adjacent definition, running their inner interpreters

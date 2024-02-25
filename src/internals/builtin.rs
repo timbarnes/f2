@@ -4,7 +4,7 @@ use crate::engine::PAD_START;
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
-use crate::engine::{BUILTIN, STR_START, TF, TIB_START, VARIABLE};
+use crate::engine::{BUILTIN, FALSE, STR_START, TF, TIB_START, VARIABLE};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -70,6 +70,8 @@ impl TF {
         self.hld_ptr = self.u_make_variable("hld");
         self.last_ptr = self.u_make_variable("last");
         self.compile_ptr = self.u_make_variable("'eval");
+        self.abort_ptr = self.u_make_variable("abort?");
+        self.data[self.abort_ptr] = FALSE;
     }
 
     /// Insert Forth code into the dictionary
@@ -91,25 +93,24 @@ impl TF {
         result_ptr
     }
 
+    /// make-variable Create a variable, returning the address of the variable's value
     fn u_make_variable(&mut self, name: &str) -> usize {
-        // Create a variable, returning the address and updating the data_ptr
-        // build the header for a variable
-        let variable_ptr = self.u_make_word(&name, &[VARIABLE, 0]); // install the name
-        variable_ptr
+        let code_ptr = self.u_make_word(&name, &[VARIABLE, 0]); // install the name
+        code_ptr + 1 // the location of the variable's value
     }
 
     fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
         // Create a constant
-        let const_ptr = self.u_make_word(name, &[val]); // install the name
-        const_ptr
+        let code_ptr = self.u_make_word(name, &[val]); // install the name
+        code_ptr + 1
     }
 
+    /// u_make_word Install a new word with provided name and arguments
+    /// back link is already in place
+    /// place it HERE
+    /// update HERE and LAST
+    /// return pointer to first parameter field - the code field pointer or cfa
     fn u_make_word(&mut self, name: &str, args: &[i64]) -> usize {
-        // install a new word with provided name and arguments
-        // back link is already in place
-        // place it HERE
-        // update HERE and LAST
-        // return HERE
         let back = self.data[self.here_ptr] as usize - 1; // the top-of-stack back pointer's location
         let mut ptr = back + 1;
         self.data[ptr] = self.u_new_string(name) as i64;
@@ -382,6 +383,20 @@ impl TF {
             TF::f_type,
             "type: print a string using pointer on stack",
         );
-        self.u_add_builtin("recurse", TF::f_recurse, "recurse")
+        self.u_add_builtin(
+            "recurse",
+            TF::f_recurse,
+            "recurse ( -- ) implements recursion inside a word definition",
+        );
+        self.u_add_builtin(
+            "\\",
+            TF::f_backslash,
+            "\\ ( -- ) Comment: ignore the remainder of the line",
+        );
+        self.u_add_builtin(
+            "(",
+            TF::f_l_paren,
+            "( <text> ) Inline comment - text inside the parens is ignored",
+        );
     }
 }

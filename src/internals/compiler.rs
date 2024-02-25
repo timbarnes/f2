@@ -265,15 +265,21 @@ impl TF {
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
     pub fn f_tick(&mut self) {
-        // *** get a string from the user (via TEXT?) and put addr on stack
-        self.f_find(); // look for it
-        if top!(self) == FALSE {
+        self.f_text(); // ( -- b u )
+        pop!(self); // don't need the delim
+        self.f_find(); // look for the token
+        if pop!(self) == FALSE {
             // write an error message
-            let mut msg = self.u_get_string(self.pad_ptr);
-            msg = format!("Word not found: {}", msg);
-            self.u_set_string(self.pad_ptr, &msg);
-            push!(self, self.pad_ptr as i64);
+            let mut msg = self.u_get_string(self.data[self.pad_ptr] as usize);
+            msg = format!("Word not found: {} ", msg);
+            self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
             self.f_type(); // a warning message
+            push!(self, FALSE);
+        } else {
+            // we found it, so convert the cfa address to an execution token
+            let cfa = pop!(self);
+            pop!(self); // don't need the nfa
+            push!(self, cfa); // push the cfa
         }
     }
 
@@ -316,7 +322,22 @@ impl TF {
     pub fn f_text(&mut self) {
         push!(self, ' ' as u8 as i64);
         self.f_parse();
-        //p rintln!("Found a token with length {}", top!(self));
+    }
+
+    /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
+    pub fn f_backslash(&mut self) {
+        push!(self, 1 as u8 as i64);
+        self.f_parse();
+        pop!(self); // throw away stack values left by f_parse
+        pop!(self);
+    }
+
+    /// ( <text> ) Used for stack signature documentation. Ignores everything up to the right paren.
+    pub fn f_l_paren(&mut self) {
+        push!(self, ')' as u8 as i64);
+        self.f_parse();
+        pop!(self); // throw away stack values left by f_parse, causing the text to be abandoned
+        pop!(self);
     }
 
     /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD
