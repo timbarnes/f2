@@ -73,10 +73,10 @@ impl TF {
             if self.should_exit() {
                 break;
             } else {
-                self.f_flush();
+                // self.f_flush();
                 self.f_query();
                 self.f_eval(); // interpret the contents of the line
-                print!("ok ");
+                print!(" ok ");
                 self.f_flush();
             }
         }
@@ -285,7 +285,7 @@ impl TF {
             let in_p = pop!(self);
             // traverse the string, dropping leading delim characters
             // in_p points *into* a string, so no count field
-            if in_p < buf_len {
+            if buf_len > 0 {
                 let start = in_p as usize;
                 let end = start + buf_len as usize;
                 let mut i = start as usize;
@@ -299,7 +299,7 @@ impl TF {
                 }
                 push!(self, in_p);
                 push!(self, (j - i) as i64);
-                push!(self, i as i64);
+                push!(self, i as i64 - in_p);
             } else {
                 // nothing left to read
                 push!(self, in_p);
@@ -313,6 +313,7 @@ impl TF {
     pub fn f_text(&mut self) {
         push!(self, ' ' as u8 as i64);
         self.f_parse();
+        println!("Found a token with length {}", top!(self));
     }
 
     /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD
@@ -347,13 +348,13 @@ impl TF {
                 if length > 0 {
                     // copy to pad
                     self.u_str_copy(
-                        (addr + delta - 1) as usize,
+                        (addr + delta) as usize,
                         self.data[self.pad_ptr] as usize,
                         length as usize,
                         false,
                     );
                 }
-                self.data[self.tib_in_ptr] += delta + length - 1;
+                self.data[self.tib_in_ptr] += delta + length;
                 push!(self, self.data[self.pad_ptr]);
                 push!(self, length);
             }
@@ -429,7 +430,7 @@ impl TF {
     /// Compare two Forth (counted) strings
     /// First byte is the length, so we'll bail quickly if they don't match
     pub fn u_str_equal(&mut self, s_addr1: usize, s_addr2: usize) -> bool {
-        for i in 0..self.strings[s_addr1] as usize {
+        for i in 0..=self.strings[s_addr1] as usize {
             if self.strings[s_addr1 + i] != self.strings[s_addr2 + i] {
                 return false;
             }
