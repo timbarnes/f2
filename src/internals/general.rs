@@ -205,7 +205,7 @@ impl TF {
 
     pub fn f_r_from(&mut self) {
         if let Some(n) = self.return_stack.pop() {
-            self.stack.push(n);
+            push!(self, n);
         } else {
             self.msg.error("r>", "Return stack underflow", None::<bool>);
         }
@@ -213,7 +213,7 @@ impl TF {
 
     pub fn f_r_get(&mut self) {
         if self.return_stack.len() > 0 {
-            self.stack.push(*self.return_stack.last().unwrap());
+            push!(self, *self.return_stack.last().unwrap());
         } else {
             self.msg.error("r@", "Return stack underflow", None::<bool>);
         }
@@ -228,8 +228,7 @@ impl TF {
                 None::<bool>,
             );
         } else {
-            self.stack
-                .push(self.return_stack[self.return_stack.len() - 1]);
+            push!(self, self.return_stack[self.return_stack.len() - 1]);
         }
     }
 
@@ -242,8 +241,7 @@ impl TF {
                 None::<bool>,
             );
         } else {
-            self.stack
-                .push(self.return_stack[self.return_stack.len() - 2]);
+            push!(self, self.return_stack[self.return_stack.len() - 2]);
         }
     }
 

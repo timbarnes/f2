@@ -1,6 +1,4 @@
 //The tForth interpreter struct and implementation
-use std::collections::HashMap;
-use std::io::{self, Write};
 
 use crate::internals::builtin::BuiltInFn;
 // use crate::internals::compiler::*;
@@ -36,36 +34,12 @@ pub const LITERAL: i64 = 3;
 pub const STRING: i64 = 4;
 pub const DEFINITION: i64 = 5;
 
-#[derive(Clone, Debug)]
-pub enum OpCode {
-    // used in compiled definitions to reference objects
-    B(usize),        // builtin
-    D(String),       // a definition's header
-    Lparen(String),  // paren (comment)
-    Jif(usize),      // if (branch)
-    Jelse(usize),    // else (branch)
-    Jthen(usize),    // then (branch)
-    Jfor(usize),     // for (branch)
-    Jnext(usize),    // next (branch)
-    W(usize),        // defined word
-    V(usize),        // variable reference
-    C(usize),        // constant reference
-    L(i64),          // literal
-    F(f64),          // float literal
-    Lstring(String), // an inline string
-    Noop,            // do nothing
-}
-
 //#[derive(Debug)]
 pub struct TF {
     pub data: [i64; DATA_SIZE],
     pub strings: [char; STRING_SIZE], // storage for strings
-    pub stack: Vec<i64>,              // the numeric stack, currently integers
-    //pub dictionary: Vec<ForthToken>,  // the dictionary: keys (words) and their definitions
-    pub builtins: Vec<BuiltInFn>, // the dictionary of builtins
-    //pub defined_variables: HashMap<String, i64>, // separate hashmap for variables
-    //pub defined_constants: HashMap<String, i64>, // separate hashmap for constants
-    pub return_stack: Vec<i64>, // for do loops etc.
+    pub builtins: Vec<BuiltInFn>,     // the dictionary of builtins
+    pub return_stack: Vec<i64>,       // for do loops etc.
     pub here_ptr: usize,
     pub stack_ptr: usize,  // top of the linear space stack
     pub return_ptr: usize, // top of the return stack
@@ -105,7 +79,6 @@ impl TF {
             TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
-                stack: Vec::new(),
                 builtins: Vec::new(),
                 return_stack: Vec::new(),
                 here_ptr: WORD_START,

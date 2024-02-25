@@ -61,7 +61,7 @@ impl TF {
         // empty the stack, reset any pending operations, and return to the prompt
         self.msg
             .warning("ABORT", "Terminating execution", None::<bool>);
-        self.stack.clear();
+        self.f_clear();
         self.set_abort_flag(true);
     }
 
@@ -329,7 +329,7 @@ impl TF {
             push!(
                 // starting address in the string
                 self,
-                (self.data[self.tib_ptr] + self.data[self.tib_in_ptr])
+                self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
             );
             if delim == 1 {
                 self.data[self.tib_in_ptr] = 1;
@@ -340,7 +340,7 @@ impl TF {
                 push!(
                     // bytes available (length of input string)
                     self,
-                    (self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1)
+                    self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1
                 );
                 push!(self, delim);
                 self.f_parse_p();

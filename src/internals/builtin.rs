@@ -6,37 +6,6 @@ use crate::engine::PAD_START;
 #[allow(dead_code)]
 use crate::engine::{BUILTIN, STR_START, TF, TIB_START, VARIABLE};
 
-macro_rules! pop {
-    ($self:ident) => {{
-        let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
-        $self.stack_ptr += 1;
-        r
-    }};
-}
-macro_rules! top {
-    ($self:ident) => {{
-        $self.data[$self.stack_ptr]
-    }};
-}
-macro_rules! push {
-    ($self:ident, $val:expr) => {
-        $self.stack_ptr -= 1;
-        $self.data[$self.stack_ptr] = $val;
-    };
-}
-macro_rules! stack_ok {
-    ($self:ident, $n: expr, $caller: expr) => {
-        if $self.stack_ptr <= STACK_START - $n {
-            true
-        } else {
-            $self.msg.error($caller, "Stack underflow", None::<bool>);
-            $self.f_abort();
-            false
-        }
-    };
-}
-
 pub trait BuiltinCall {
     fn call(&mut self);
 }
@@ -55,30 +24,6 @@ impl BuiltInFn {
     pub fn new(name: String, code: for<'a> fn(&'a mut TF), doc: String) -> BuiltInFn {
         BuiltInFn { name, code, doc }
     }
-}
-
-macro_rules! pop2_push1 {
-    // Helper macro
-    ($self:ident, $word:expr, $expression:expr) => {
-        if let Some((j, k)) = $self.pop_two(&$word) {
-            $self.stack.push($expression(k, j));
-        }
-    };
-}
-macro_rules! pop1_push1 {
-    // Helper macro
-    ($self:ident, $word:expr, $expression:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $self.stack.push($expression(x));
-        }
-    };
-}
-macro_rules! pop1 {
-    ($self:ident, $word:expr, $code:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $code(x);
-        }
-    };
 }
 
 impl TF {
