@@ -378,7 +378,7 @@ impl TF {
                         false,
                     );
                 }
-                self.data[self.tib_in_ptr] += delta + length;
+                self.data[self.tib_in_ptr] += delta + length + 1;
                 push!(self, self.data[self.pad_ptr]);
                 push!(self, length);
             }
