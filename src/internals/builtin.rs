@@ -68,7 +68,7 @@ impl TF {
         self.tib_in_ptr = self.u_make_variable(">in");
         self.data[self.tib_in_ptr] = TIB_START as i64 + 1;
         self.hld_ptr = self.u_make_variable("hld");
-        self.last_ptr = self.u_make_variable("last");
+        self.last_ptr = self.u_make_variable("last"); // points to nfa of new definition
         self.compile_ptr = self.u_make_variable("'eval");
         self.abort_ptr = self.u_make_variable("abort?");
         self.data[self.abort_ptr] = FALSE;
@@ -120,7 +120,7 @@ impl TF {
         }
         ptr += 1;
         self.data[ptr] = back as i64; // the new back pointer
-        self.data[self.here_ptr] = ptr as i64 + 1; // top of the stack = HERE
+        self.data[self.here_ptr] = ptr as i64 + 1; // start of free space = HERE
         self.data[self.context_ptr] = back as i64 + 1; // context is the name_pointer field of this word
         back + 2 // address of first parameter field
     }
@@ -398,5 +398,41 @@ impl TF {
             TF::f_l_paren,
             "( <text> ) Inline comment - text inside the parens is ignored",
         );
+        self.u_add_builtin(
+            "variable",
+            TF::f_variable,
+            "variable <name> creates a new variable in the dictionary",
+        );
+        self.u_add_builtin(
+            "constant",
+            TF::f_constant,
+            "constant <name> ( n -- ) creates and initializes a new constant in the dictionary",
+        );
+        self.u_add_builtin(
+            "create",
+            TF::f_create,
+            "create <name> ( -- ) creates a name field in the dictionary",
+        );
+        self.u_add_builtin(
+            "pack$",
+            TF::f_pack_d,
+            "pack$ ( src n dest -- ) copies a counted string to a new location",
+        );
+        self.u_add_builtin(
+            "eval",
+            TF::f_eval,
+            "eval ( dest -- ) interprets a line of tokens from the TIB",
+        );
+        self.u_add_builtin(
+            ",",
+            TF::f_comma,
+            ", ( n -- ) copies the top of the stack to the top of the dictionary",
+        );
+        self.u_add_builtin(
+            ";",
+            TF::f_semicolon,
+            "; ( -- ) terminate a definition, resetting to interpret mode",
+        );
+        self.f_immediate();
     }
 }

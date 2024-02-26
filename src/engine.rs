@@ -33,6 +33,11 @@ pub const CONSTANT: i64 = 2;
 pub const LITERAL: i64 = 3;
 pub const STRING: i64 = 4;
 pub const DEFINITION: i64 = 5;
+pub const BRANCH: i64 = 6;
+pub const BRANCH0: i64 = 7;
+pub const ABORT: i64 = 8;
+pub const EXIT: i64 = 9;
+pub const NEXT: i64 = 10;
 
 //#[derive(Debug)]
 pub struct TF {
@@ -230,8 +235,6 @@ impl TF {
         let file_name = self.u_get_string(self.pad_ptr);
         self.load_file(&file_name);
     }
-
-    fn f_constant(&self, idx: usize) {}
 
     fn step(&mut self) {
         // controls step / debug functions

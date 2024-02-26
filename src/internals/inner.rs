@@ -73,4 +73,19 @@ impl TF {
     ///    [ index of i_definition ] [ sequence of compiled words ]
     ///
     pub fn i_definition(&mut self, def: i64) {}
+
+    /// Unconditional branch, used by condition and loop structures
+    pub fn i_branch(&mut self, dist: i64) {}
+
+    /// Branch if zero, used by condition and loop structures
+    pub fn i_branch0(&mut self, dist: i64) {}
+
+    /// Force an abort
+    pub fn i_abort(&mut self, dist: i64) {}
+
+    /// Leave the current word
+    pub fn i_exit(&mut self, dist: i64) {}
+
+    /// Continue to the next word
+    pub fn i_next(&mut self, dist: i64) {}
 }
