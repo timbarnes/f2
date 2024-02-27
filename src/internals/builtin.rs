@@ -155,9 +155,9 @@ impl TF {
             "_literal ( opcode -- ) loads a number on the stack",
         );
         self.u_add_builtin(
-            "_string",
-            TF::i_string,
-            "_string ( opcode -- ) loads a string pointer on the stack",
+            "_stringlit",
+            TF::i_strlit,
+            "_stringlit ( opcode -- ) loads a string pointer on the stack",
         );
         self.u_add_builtin(
             "_definition",

@@ -31,7 +31,7 @@ pub const BUILTIN: i64 = 0;
 pub const VARIABLE: i64 = 1;
 pub const CONSTANT: i64 = 2;
 pub const LITERAL: i64 = 3;
-pub const STRING: i64 = 4;
+pub const STRLIT: i64 = 4;
 pub const DEFINITION: i64 = 5;
 pub const BRANCH: i64 = 6;
 pub const BRANCH0: i64 = 7;
@@ -152,7 +152,8 @@ impl TF {
         self.set_var(self.abort_ptr, if v { -1 } else { 0 });
     }
     pub fn get_abort_flag(&mut self) -> bool {
-        if self.get_var(self.abort_ptr) == 0 {
+        let val = self.get_var(self.abort_ptr);
+        if val == FALSE {
             false
         } else {
             true
