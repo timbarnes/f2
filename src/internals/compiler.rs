@@ -420,7 +420,7 @@ impl TF {
         push!(self, EXIT);
         self.f_comma();
         self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
-        self.data[self.here_ptr] += 2; // over EXIT and back pointer
+        self.data[self.here_ptr] += 1; // over EXIT and back pointer
         self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
         self.set_compile_mode(false);
     }
@@ -478,7 +478,10 @@ impl TF {
     pub fn f_see(&mut self) {
         self.f_tick(); // finds the address of the word
         let cfa = pop!(self);
-        if cfa != FALSE {
+        if cfa == FALSE || self.data[cfa as usize] != DEFINITION {
+            self.msg
+                .error("see", "Can only decompile colon definitions", None::<bool>);
+        } else {
             print!(": ");
             let name = self.u_get_string(self.data[cfa as usize - 1] as usize);
             print!("{name} ");
@@ -489,17 +492,17 @@ impl TF {
                     BUILTIN => {
                         let opcode = self.data[self.data[index as usize + 1] as usize] as usize;
                         let name = &self.builtins[opcode].name;
-                        println!("{name} ");
+                        print!("{name} ");
                         index += 1; // we consumed an extra cell
                     }
                     VARIABLE => {} // print name
                     CONSTANT => {} // print name
                     LITERAL => {
-                        println!("{} ", self.data[index as usize + 1]);
+                        print!("{} ", self.data[index as usize + 1]);
                         index += 1;
                     }
-                    STRING => {}                   // print string contents
-                    DEFINITION => println!("???"), // Can't have a definition inside a definition
+                    STRING => {}                 // print string contents
+                    DEFINITION => print!("???"), // Can't have a definition inside a definition
                     BRANCH => {
                         print!("branch:{} ", self.data[index as usize + 1]);
                         index += 1;
@@ -521,7 +524,7 @@ impl TF {
                         // it's a word
                         let word = self.data[self.data[index] as usize - 1]; // nfa address
                         let name = self.u_get_string(word as usize);
-                        println!("{name}");
+                        print!("{name} ");
                     }
                 }
                 index += 1;
