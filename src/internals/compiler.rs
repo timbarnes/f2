@@ -1,15 +1,15 @@
 // Compiler and Interpreter
 
 use crate::engine::{
-    ADDRESS_MASK, BUILTIN, CONSTANT, DEFINITION, FALSE, IMMEDIATE_MASK, LITERAL, STACK_START,
-    STRING, TF, TRUE, VARIABLE,
+    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, FALSE,
+    IMMEDIATE_MASK, INNERS, LITERAL, NEXT, STACK_START, STRING, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
         if $self.stack_ptr <= STACK_START - $n {
-            $self.f_dot_s();
+            // $self.f_dot_s();
             true
         } else {
             $self.msg.error($caller, "Stack underflow", None::<bool>);
@@ -42,9 +42,20 @@ impl TF {
     /// immediate - sets the immediate flag on the most recently defined word
     /// Context pointer links to the most recent name field
     pub fn f_immediate(&mut self) {
-        let mut mask = self.data[self.context_ptr] as usize;
-        mask |= IMMEDIATE_MASK;
-        self.data[self.context_ptr] = mask as i64;
+        let mut str_addr = self.data[self.data[self.context_ptr] as usize] as usize;
+        str_addr |= IMMEDIATE_MASK;
+        self.data[self.data[self.context_ptr] as usize] = str_addr as i64;
+    }
+
+    /// immediate? ( nfa -- T | F ) Determines if a word is immediate or not
+    pub fn f_immediate_q(&mut self) {
+        if stack_ok!(self, 1, "immediate?") {
+            let nfa = pop!(self) as usize;
+            let name_ptr = self.data[nfa] as usize;
+            let immed = name_ptr & IMMEDIATE_MASK;
+            let result = if immed == 0 { FALSE } else { TRUE };
+            push!(self, result);
+        }
     }
 
     /// [  Install $INTERPRET in 'EVAL
@@ -61,7 +72,7 @@ impl TF {
         // empty the stack, reset any pending operations, and return to the prompt
         self.msg
             .warning("ABORT", "Terminating execution", None::<bool>);
-        self.stack.clear();
+        self.f_clear();
         self.set_abort_flag(true);
     }
 
@@ -69,14 +80,19 @@ impl TF {
         self.return_stack.clear();
         self.set_program_counter(0);
         self.f_abort();
+        print!(" ok ");
         loop {
             if self.should_exit() {
                 break;
             } else {
+                // self.f_flush();
                 self.f_query();
-                self.f_dot_s();
                 self.f_eval(); // interpret the contents of the line
-                println!("ok");
+                if self.show_stack {
+                    self.f_dot_s();
+                }
+                print!(" ok ");
+                self.f_flush();
             }
         }
     }
@@ -87,13 +103,19 @@ impl TF {
         if stack_ok!(self, 1, "execute") {
             // call the appropriate inner interpreter
             let xt = pop!(self);
+            push!(self, xt + 1);
             match self.data[xt as usize] {
-                BUILTIN => self.i_builtin(xt + 1),
-                VARIABLE => self.i_variable(xt + 1),
-                CONSTANT => self.i_constant(xt + 1),
-                LITERAL => self.i_literal(xt + 1),
-                STRING => self.i_string(xt + 1),
-                DEFINITION => self.i_definition(xt + 1),
+                BUILTIN => self.i_builtin(),
+                VARIABLE => self.i_variable(),
+                CONSTANT => self.i_constant(),
+                LITERAL => self.i_literal(),
+                STRING => self.i_string(),
+                DEFINITION => self.i_definition(),
+                BRANCH => self.i_branch(),
+                BRANCH0 => self.i_branch0(),
+                ABORT => self.i_abort(),
+                EXIT => self.i_exit(),
+                NEXT => self.i_next(),
                 _ => self
                     .msg
                     .error("execute", "Unknown inner interpreter", Some(xt)),
@@ -127,13 +149,20 @@ impl TF {
     ///            If not a number, ABORT.
     pub fn f_d_compile(&mut self) {
         if stack_ok!(self, 1, "$compile") {
-            let s_addr = top!(self);
-            if s_addr != 0 {
-                self.f_find(); // (s -- nfa, cfa, T | s F )
+            self.f_find();
+            if pop!(self) == TRUE {
+                // we found a word
+                // if it's immediate, we need to execute it; otherwise continue compiling
+                let cfa = pop!(self);
+                self.f_immediate_q();
                 if pop!(self) == TRUE {
-                    // we found a word
+                    // call the interpreter for this word
+                    push!(self, self.data[self.pad_ptr] as i64);
+                    self.f_d_interpret();
+                } else {
+                    // compile it
+                    push!(self, cfa);
                     self.f_comma(); // uses the cfa on the stack
-                    pop!(self); // throw away the nfa
                 }
             } else {
                 self.f_number_q();
@@ -144,6 +173,7 @@ impl TF {
                     let word = &self.u_get_string(self.pad_ptr);
                     self.msg
                         .warning("$interpret", "token not recognized", Some(word));
+                    self.f_abort();
                 }
             }
         }
@@ -158,13 +188,9 @@ impl TF {
             if pop!(self) == TRUE {
                 // we have a definition
                 let cfa = pop!(self);
-                let nfa = pop!(self);
-                if (nfa as usize | IMMEDIATE_MASK) != 0 {
-                    self.f_d_interpret();
-                } else {
-                    push!(self, cfa);
-                    self.f_execute();
-                }
+                let _nfa = pop!(self);
+                push!(self, cfa);
+                self.f_execute();
             } else {
                 // try number?
                 self.f_number_q(); // ( s -- n T | a F )
@@ -183,31 +209,33 @@ impl TF {
     /// FIND (s -- nfa, cfa, T | s F ) Search the dictionary for the token indexed through s.
     /// If not found, return the string address so NUMBER? can look at it
     pub fn f_find(&mut self) {
-        let mut result = false;
-        let source_addr = pop!(self) as usize;
-        let mut link = self.data[self.here_ptr] as usize - 1;
         if stack_ok!(self, 1, "find") {
-            link = self.data[link] as usize; // go back to the beginning of the top word
+            let mut result = false;
+            let source_addr = pop!(self) as usize;
+            let mut link = self.data[self.context_ptr] as usize - 1;
+            // link = self.data[link] as usize; // go back to the beginning of the top word
             while link > 0 {
                 // name field is immediately after the link
-                if self.strings[self.data[link + 1] as usize & ADDRESS_MASK] as u8
-                    == self.strings[source_addr] as u8
-                {
-                    if self.u_str_equal(source_addr, self.data[link + 1] as usize) {
+                let nfa_val = self.data[link + 1];
+                let str_addr = nfa_val as usize & ADDRESS_MASK;
+                if self.strings[str_addr] as u8 == self.strings[source_addr] as u8 {
+                    if self.u_str_equal(source_addr, str_addr as usize) {
                         result = true;
                         break;
                     }
                 }
                 link = self.data[link] as usize;
             }
-        }
-        if result {
-            push!(self, link as i64 + 1);
-            push!(self, link as i64 + 2);
-            push!(self, TRUE);
+            if result {
+                push!(self, link as i64 + 1);
+                push!(self, link as i64 + 2);
+                push!(self, TRUE);
+            } else {
+                push!(self, source_addr as i64);
+                push!(self, FALSE);
+            }
         } else {
-            push!(self, source_addr as i64);
-            push!(self, FALSE);
+            // stack error
         }
     }
 
@@ -227,17 +255,17 @@ impl TF {
         }
     }
 
-    /// f_comma ( cfa -- ) compile a code word into a definition
+    /// f_comma ( n -- ) compile a value into a definition
     pub fn f_comma(&mut self) {
-        self.data[self.here_ptr] = pop!(self);
-        self.here_ptr += 1;
+        self.data[self.data[self.here_ptr] as usize] = pop!(self);
+        self.data[self.here_ptr] += 1;
     }
 
     /// f_literal ( n -- ) compile a literal number with it's inner interpreter code pointer
     pub fn f_literal(&mut self) {
-        self.data[self.here_ptr] = LITERAL;
-        self.data[self.here_ptr + 1] = pop!(self);
-        self.here_ptr += 2;
+        push!(self, LITERAL);
+        self.f_comma();
+        self.f_comma();
     }
 
     /// UNIQUE? (s -- s )
@@ -249,24 +277,28 @@ impl TF {
             self.msg
                 .warning("unique?", "Overwriting existing definition", None::<bool>);
         }
-        pop!(self);
-        pop!(self);
     }
 
-    /// ' (TICK) <name> ( -- a | FALSE )
+    /// ' (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
     pub fn f_tick(&mut self) {
-        // *** get a string from the user (via TEXT?) and put addr on stack
-        self.f_find(); // look for it
-        if top!(self) == FALSE {
+        self.f_text(); // ( -- b u )
+        pop!(self); // don't need the delim
+        self.f_find(); // look for the token
+        if pop!(self) == FALSE {
             // write an error message
-            let mut msg = self.u_get_string(self.pad_ptr);
-            msg = format!("Word not found: {}", msg);
-            self.u_set_string(self.pad_ptr, &msg);
-            push!(self, self.pad_ptr as i64);
+            let mut msg = self.u_get_string(self.data[self.pad_ptr] as usize);
+            msg = format!("Word not found: {} ", msg);
+            self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
             self.f_type(); // a warning message
+            push!(self, FALSE);
+        } else {
+            // we found it, so convert the cfa address to an execution token
+            let cfa = pop!(self);
+            pop!(self); // don't need the nfa
+            push!(self, cfa); // push the cfa
         }
     }
 
@@ -281,20 +313,27 @@ impl TF {
             let in_p = pop!(self);
             // traverse the string, dropping leading delim characters
             // in_p points *into* a string, so no count field
-            let start = in_p as usize;
-            let end = start + buf_len as usize;
-            let mut i = start as usize;
-            let mut j = i;
-            while self.strings[i] == delim && i < end {
-                i += 1;
+            if buf_len > 0 {
+                let start = in_p as usize;
+                let end = start + buf_len as usize;
+                let mut i = start as usize;
+                let mut j = i;
+                while self.strings[i] == delim && i < end {
+                    i += 1;
+                }
+                j = i;
+                while j < end && self.strings[j] != delim {
+                    j += 1;
+                }
+                push!(self, in_p);
+                push!(self, (j - i) as i64);
+                push!(self, i as i64 - in_p);
+            } else {
+                // nothing left to read
+                push!(self, in_p);
+                push!(self, 0);
+                push!(self, 0);
             }
-            j = i;
-            while j < end && self.strings[j] != delim {
-                j += 1;
-            }
-            push!(self, in_p);
-            push!(self, (j - i) as i64);
-            push!(self, i as i64);
         }
     }
 
@@ -302,6 +341,22 @@ impl TF {
     pub fn f_text(&mut self) {
         push!(self, ' ' as u8 as i64);
         self.f_parse();
+    }
+
+    /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
+    pub fn f_backslash(&mut self) {
+        push!(self, 1 as u8 as i64);
+        self.f_parse();
+        pop!(self); // throw away stack values left by f_parse
+        pop!(self);
+    }
+
+    /// ( <text> ) Used for stack signature documentation. Ignores everything up to the right paren.
+    pub fn f_l_paren(&mut self) {
+        push!(self, ')' as u8 as i64);
+        self.f_parse();
+        pop!(self); // throw away stack values left by f_parse, causing the text to be abandoned
+        pop!(self);
     }
 
     /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD
@@ -314,7 +369,7 @@ impl TF {
             push!(
                 // starting address in the string
                 self,
-                (self.data[self.tib_ptr] + self.data[self.tib_in_ptr])
+                self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
             );
             if delim == 1 {
                 self.data[self.tib_in_ptr] = 1;
@@ -325,7 +380,7 @@ impl TF {
                 push!(
                     // bytes available (length of input string)
                     self,
-                    (self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1)
+                    self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1
                 );
                 push!(self, delim);
                 self.f_parse_p();
@@ -336,13 +391,13 @@ impl TF {
                 if length > 0 {
                     // copy to pad
                     self.u_str_copy(
-                        (addr + delta - 1) as usize,
+                        (addr + delta) as usize,
                         self.data[self.pad_ptr] as usize,
                         length as usize,
                         false,
                     );
                 }
-                self.data[self.tib_in_ptr] += delta + length;
+                self.data[self.tib_in_ptr] += delta + length + 1;
                 push!(self, self.data[self.pad_ptr]);
                 push!(self, length);
             }
@@ -351,6 +406,130 @@ impl TF {
 
     pub fn f_colon(&mut self) {
         self.set_compile_mode(true);
+        self.f_create(); // gets the name and makes a new dictionary entry
+        push!(self, DEFINITION);
+        self.f_comma();
+    }
+
+    /// ; terminates a definition, writing the cfa for EXIT, and resetting to interpret mode
+    ///   It has to write the exit code word, and add a back pointer
+    ///   It also has to update HERE and CONTEXT.
+    ///   Finally it switches out of compile mode
+    pub fn f_semicolon(&mut self) {
+        // add a back pointer and update HERE
+        push!(self, EXIT);
+        self.f_comma();
+        self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+        self.data[self.here_ptr] += 1; // over EXIT and back pointer
+        self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+        self.set_compile_mode(false);
+    }
+
+    /// f_create makes a new dictionary entry, using a postfix name
+    /// References HERE, and assumes back pointer is in place already
+    pub fn f_create(&mut self) {
+        self.f_text(); // get the word's name
+        pop!(self); // throw away the length, keep the text pointer
+        self.f_q_unique(); // issue a warning if it's already defined
+        let length = self.strings[self.data[self.pad_ptr] as usize] as u8 as i64;
+        push!(self, length);
+        push!(self, self.data[self.string_ptr]);
+        self.f_pack_d(); // make a new string with the name from PAD
+        self.data[self.data[self.here_ptr] as usize] = pop!(self); // the string header
+        self.data[self.string_ptr] += length + 1; // update the free string pointer
+        self.data[self.last_ptr] = self.data[self.here_ptr];
+        self.data[self.here_ptr] += 1;
+    }
+
+    /// variable <name> ( -- ) Creates a new variable in the dictionary
+    pub fn f_variable(&mut self) {
+        self.f_create(); // gets a name and makes a name field in the dictionary
+        push!(self, VARIABLE);
+        self.f_comma(); // ( n -- )
+        push!(self, 0); // default initial value
+        self.f_comma();
+    }
+
+    /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
+    pub fn f_constant(&mut self) {
+        self.f_create(); // gets a name and makes a name field in the dictionary
+        push!(self, CONSTANT);
+        self.f_comma(); // ( n -- )
+        push!(self, 0); // default initial value
+        self.f_comma();
+    }
+
+    /// string <name> ( s -- ) Creates and initializez a new string variable in the dictionary
+    pub fn f_string(&mut self) {}
+
+    /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
+    pub fn f_pack_d(&mut self) {
+        let dest = pop!(self) as usize;
+        let length = pop!(self) as usize;
+        let source = pop!(self) as usize;
+        // assuming both are counted, we begin with the count byte. Length should match the source count byte
+        for i in (0..=length) {
+            self.strings[dest + i] = self.strings[source + i];
+        }
+        push!(self, dest as i64);
+    }
+
+    /// see <name> ( -- ) prints the definition of a word
+    pub fn f_see(&mut self) {
+        self.f_tick(); // finds the address of the word
+        let cfa = pop!(self);
+        if cfa == FALSE || self.data[cfa as usize] != DEFINITION {
+            self.msg
+                .error("see", "Can only decompile colon definitions", None::<bool>);
+        } else {
+            print!(": ");
+            let name = self.u_get_string(self.data[cfa as usize - 1] as usize);
+            print!("{name} ");
+            let mut index = cfa as usize + 1; // skip the inner interpreter
+            loop {
+                let cfa = self.data[index];
+                match cfa {
+                    BUILTIN => {
+                        let opcode = self.data[self.data[index as usize + 1] as usize] as usize;
+                        let name = &self.builtins[opcode].name;
+                        print!("{name} ");
+                        index += 1; // we consumed an extra cell
+                    }
+                    VARIABLE => {} // print name
+                    CONSTANT => {} // print name
+                    LITERAL => {
+                        print!("{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    STRING => {}                 // print string contents
+                    DEFINITION => print!("???"), // Can't have a definition inside a definition
+                    BRANCH => {
+                        print!("branch:{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    BRANCH0 => {
+                        print!("branch0:{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    ABORT => println!("abort "),
+                    EXIT => {
+                        println!(";");
+                        break;
+                    }
+                    NEXT => {
+                        println!(";");
+                        break;
+                    }
+                    _ => {
+                        // it's a word
+                        let word = self.data[self.data[index] as usize - 1]; // nfa address
+                        let name = self.u_get_string(word as usize);
+                        print!("{name} ");
+                    }
+                }
+                index += 1;
+            }
+        }
     }
 
     /*  fn f_d_pack(&mut self) {
@@ -363,16 +542,6 @@ impl TF {
         }
     }
     */
-
-    /// u_interpret executes a line of code in the new interpreter
-    /* pub fn u_interpret(&mut self, line: &str) {
-        // put it in TIB and call interpret?
-        self.u_save_string(line, self.tib_ptr);
-        self.data[self.tib_size_ptr] = line.len() as i64;
-        self.data[self.tib_in_ptr] = 1;
-        push!(self, self.tib_ptr as i64);
-        self.f_eval();
-    } */
 
     /// u_write_word compiles a token into the current definition at HERE
     ///              updating HERE afterwards
@@ -418,7 +587,7 @@ impl TF {
     /// Compare two Forth (counted) strings
     /// First byte is the length, so we'll bail quickly if they don't match
     pub fn u_str_equal(&mut self, s_addr1: usize, s_addr2: usize) -> bool {
-        for i in 0..self.strings[s_addr1] as usize {
+        for i in 0..=self.strings[s_addr1] as usize {
             if self.strings[s_addr1 + i] != self.strings[s_addr2 + i] {
                 return false;
             }

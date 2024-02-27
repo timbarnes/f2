@@ -14,17 +14,6 @@ macro_rules! stack_ok {
         }
     };
 }
-macro_rules! stack_ok {
-    ($self:ident, $n: expr, $caller: expr) => {
-        if $self.stack_ptr <= STACK_START - $n {
-            true
-        } else {
-            $self.msg.error($caller, "Stack underflow", None::<bool>);
-            $self.f_abort();
-            false
-        }
-    };
-}
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
@@ -56,7 +45,9 @@ impl TF {
         // get a character and push on the stack
         let c = self.reader.read_char();
         match c {
-            Some(c) => self.stack.push(c as i64),
+            Some(c) => {
+                push!(self, c as u8 as i64);
+            }
             None => self
                 .msg
                 .error("KEY", "unable to get char from input stream", None::<bool>),
@@ -102,7 +93,7 @@ impl TF {
 
     // output
 
-    pub fn i_emit(&mut self) {
+    pub fn f_emit(&mut self) {
         if stack_ok!(self, 1, "emit") {
             let c = pop!(self);
             if (0x20..=0x7f).contains(&c) {
@@ -110,19 +101,6 @@ impl TF {
             } else {
                 self.msg.error("EMIT", "Arg out of range", Some(c));
             }
-        }
-    }
-
-    pub fn f_emit(&mut self) {
-        match self.stack.pop() {
-            Some(n) => {
-                if (0x20..=0x7f).contains(&n) {
-                    print!("{}", n as u8 as char);
-                } else {
-                    self.msg.error("EMIT", "Arg out of range", Some(n));
-                }
-            }
-            None => {}
         }
     }
 
@@ -139,10 +117,10 @@ impl TF {
 
     pub fn f_dot_s(&mut self) {
         print!("[ ");
-        for i in self.stack_ptr..STACK_START {
+        for i in (self.stack_ptr..STACK_START).rev() {
             print!("{} ", self.data[i]);
         }
-        println!("] ");
+        print!("] ");
     }
 
     pub fn f_cr(&mut self) {

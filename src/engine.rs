@@ -1,6 +1,4 @@
 //The tForth interpreter struct and implementation
-use std::collections::HashMap;
-use std::io::{self, Write};
 
 use crate::internals::builtin::BuiltInFn;
 // use crate::internals::compiler::*;
@@ -35,37 +33,20 @@ pub const CONSTANT: i64 = 2;
 pub const LITERAL: i64 = 3;
 pub const STRING: i64 = 4;
 pub const DEFINITION: i64 = 5;
+pub const BRANCH: i64 = 6;
+pub const BRANCH0: i64 = 7;
+pub const ABORT: i64 = 8;
+pub const EXIT: i64 = 9;
+pub const NEXT: i64 = 10;
 
-#[derive(Clone, Debug)]
-pub enum OpCode {
-    // used in compiled definitions to reference objects
-    B(usize),        // builtin
-    D(String),       // a definition's header
-    Lparen(String),  // paren (comment)
-    Jif(usize),      // if (branch)
-    Jelse(usize),    // else (branch)
-    Jthen(usize),    // then (branch)
-    Jfor(usize),     // for (branch)
-    Jnext(usize),    // next (branch)
-    W(usize),        // defined word
-    V(usize),        // variable reference
-    C(usize),        // constant reference
-    L(i64),          // literal
-    F(f64),          // float literal
-    Lstring(String), // an inline string
-    Noop,            // do nothing
-}
+pub const INNERS: i64 = 15; // dictionary code values less than this are inner interpreters, not cfa values.
 
 //#[derive(Debug)]
 pub struct TF {
     pub data: [i64; DATA_SIZE],
     pub strings: [char; STRING_SIZE], // storage for strings
-    pub stack: Vec<i64>,              // the numeric stack, currently integers
-    //pub dictionary: Vec<ForthToken>,  // the dictionary: keys (words) and their definitions
-    pub builtins: Vec<BuiltInFn>, // the dictionary of builtins
-    //pub defined_variables: HashMap<String, i64>, // separate hashmap for variables
-    //pub defined_constants: HashMap<String, i64>, // separate hashmap for constants
-    pub return_stack: Vec<i64>, // for do loops etc.
+    pub builtins: Vec<BuiltInFn>,     // the dictionary of builtins
+    pub return_stack: Vec<i64>,       // for do loops etc.
     pub here_ptr: usize,
     pub stack_ptr: usize,  // top of the linear space stack
     pub return_ptr: usize, // top of the return stack
@@ -105,7 +86,6 @@ impl TF {
             TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
-                stack: Vec::new(),
                 builtins: Vec::new(),
                 return_stack: Vec::new(),
                 here_ptr: WORD_START,
@@ -141,17 +121,17 @@ impl TF {
         //self.f_insert_builtins();
         self.add_builtins();
         self.set_var(self.compile_ptr, FALSE);
-        self.u_insert_code();
+        self.u_insert_code(); // allows forth code to be run prior to presenting a prompt.
     }
 
     /// get_var returns the value of a defined variable from its pointer address
     pub fn get_var(&mut self, addr: usize) -> i64 {
-        self.data[addr + 1]
+        self.data[addr]
     }
 
     /// set_var returns the value of a defined variable from its pointer address
     pub fn set_var(&mut self, addr: usize, val: i64) {
-        self.data[addr + 1] = val;
+        self.data[addr] = val;
     }
 
     /// get_compile_mode *** needs to work with 'EVAL contents
@@ -257,8 +237,6 @@ impl TF {
         let file_name = self.u_get_string(self.pad_ptr);
         self.load_file(&file_name);
     }
-
-    fn f_constant(&self, idx: usize) {}
 
     fn step(&mut self) {
         // controls step / debug functions

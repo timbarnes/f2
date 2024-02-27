@@ -3,6 +3,26 @@
 use crate::engine::{STACK_START, TF};
 use crate::messages::DebugLevel;
 
+macro_rules! stack_ok {
+    ($self:ident, $n: expr, $caller: expr) => {
+        if $self.stack_ptr <= STACK_START - $n {
+            true
+        } else {
+            $self.msg.error($caller, "Stack underflow", None::<bool>);
+            $self.f_abort();
+            false
+        }
+    };
+}
+macro_rules! pop {
+    ($self:ident) => {{
+        let r = $self.data[$self.stack_ptr];
+        $self.data[$self.stack_ptr] = 999999;
+        $self.stack_ptr += 1;
+        r
+    }};
+}
+
 macro_rules! push {
     ($self:ident, $val:expr) => {
         $self.stack_ptr -= 1;
@@ -38,11 +58,13 @@ impl TF {
     }
 
     pub fn f_dbg(&mut self) {
-        match self.stack.pop() {
-            Some(0) => self.msg.set_level(DebugLevel::Error),
-            Some(1) => self.msg.set_level(DebugLevel::Warning),
-            Some(2) => self.msg.set_level(DebugLevel::Info),
-            _ => self.msg.set_level(DebugLevel::Debug),
+        if stack_ok!(self, 1, "dbg") {
+            match pop!(self) {
+                0 => self.msg.set_level(DebugLevel::Error),
+                1 => self.msg.set_level(DebugLevel::Warning),
+                2 => self.msg.set_level(DebugLevel::Info),
+                _ => self.msg.set_level(DebugLevel::Debug),
+            }
         }
     }
 

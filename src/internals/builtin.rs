@@ -4,38 +4,7 @@ use crate::engine::PAD_START;
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
-use crate::engine::{BUILTIN, STR_START, TF, TIB_START, VARIABLE};
-
-macro_rules! pop {
-    ($self:ident) => {{
-        let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
-        $self.stack_ptr += 1;
-        r
-    }};
-}
-macro_rules! top {
-    ($self:ident) => {{
-        $self.data[$self.stack_ptr]
-    }};
-}
-macro_rules! push {
-    ($self:ident, $val:expr) => {
-        $self.stack_ptr -= 1;
-        $self.data[$self.stack_ptr] = $val;
-    };
-}
-macro_rules! stack_ok {
-    ($self:ident, $n: expr, $caller: expr) => {
-        if $self.stack_ptr <= STACK_START - $n {
-            true
-        } else {
-            $self.msg.error($caller, "Stack underflow", None::<bool>);
-            $self.f_abort();
-            false
-        }
-    };
-}
+use crate::engine::{BUILTIN, FALSE, STR_START, TF, TIB_START, VARIABLE};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -55,30 +24,6 @@ impl BuiltInFn {
     pub fn new(name: String, code: for<'a> fn(&'a mut TF), doc: String) -> BuiltInFn {
         BuiltInFn { name, code, doc }
     }
-}
-
-macro_rules! pop2_push1 {
-    // Helper macro
-    ($self:ident, $word:expr, $expression:expr) => {
-        if let Some((j, k)) = $self.pop_two(&$word) {
-            $self.stack.push($expression(k, j));
-        }
-    };
-}
-macro_rules! pop1_push1 {
-    // Helper macro
-    ($self:ident, $word:expr, $expression:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $self.stack.push($expression(x));
-        }
-    };
-}
-macro_rules! pop1 {
-    ($self:ident, $word:expr, $code:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $code(x);
-        }
-    };
 }
 
 impl TF {
@@ -123,8 +68,10 @@ impl TF {
         self.tib_in_ptr = self.u_make_variable(">in");
         self.data[self.tib_in_ptr] = TIB_START as i64 + 1;
         self.hld_ptr = self.u_make_variable("hld");
-        self.last_ptr = self.u_make_variable("last");
+        self.last_ptr = self.u_make_variable("last"); // points to nfa of new definition
         self.compile_ptr = self.u_make_variable("'eval");
+        self.abort_ptr = self.u_make_variable("abort?");
+        self.data[self.abort_ptr] = FALSE;
     }
 
     /// Insert Forth code into the dictionary
@@ -146,25 +93,24 @@ impl TF {
         result_ptr
     }
 
+    /// make-variable Create a variable, returning the address of the variable's value
     fn u_make_variable(&mut self, name: &str) -> usize {
-        // Create a variable, returning the address and updating the data_ptr
-        // build the header for a variable
-        let variable_ptr = self.u_make_word(&name, &[VARIABLE, 0]); // install the name
-        variable_ptr
+        let code_ptr = self.u_make_word(&name, &[VARIABLE, 0]); // install the name
+        code_ptr + 1 // the location of the variable's value
     }
 
     fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
         // Create a constant
-        let const_ptr = self.u_make_word(name, &[val]); // install the name
-        const_ptr
+        let code_ptr = self.u_make_word(name, &[val]); // install the name
+        code_ptr + 1
     }
 
+    /// u_make_word Install a new word with provided name and arguments
+    /// back link is already in place
+    /// place it HERE
+    /// update HERE and LAST
+    /// return pointer to first parameter field - the code field pointer or cfa
     fn u_make_word(&mut self, name: &str, args: &[i64]) -> usize {
-        // install a new word with provided name and arguments
-        // back link is already in place
-        // place it HERE
-        // update HERE and LAST
-        // return HERE
         let back = self.data[self.here_ptr] as usize - 1; // the top-of-stack back pointer's location
         let mut ptr = back + 1;
         self.data[ptr] = self.u_new_string(name) as i64;
@@ -174,7 +120,7 @@ impl TF {
         }
         ptr += 1;
         self.data[ptr] = back as i64; // the new back pointer
-        self.data[self.here_ptr] = ptr as i64 + 1; // top of the stack = HERE
+        self.data[self.here_ptr] = ptr as i64 + 1; // start of free space = HERE
         self.data[self.context_ptr] = back as i64 + 1; // context is the name_pointer field of this word
         back + 2 // address of first parameter field
     }
@@ -187,6 +133,70 @@ impl TF {
     }
 
     pub fn add_builtins(&mut self) {
+        // Inner interpreters occupy the addresses lower than 100
+        self.u_add_builtin(
+            "_builtin",
+            TF::i_builtin,
+            "_builtin ( opcode -- ) executes the builtin on the stack",
+        );
+        self.u_add_builtin(
+            "_variable",
+            TF::i_variable,
+            "variable ( opcode -- ) loads a variable's address on the stack",
+        );
+        self.u_add_builtin(
+            "_constant",
+            TF::i_constant,
+            "_constant ( opcode -- ) loads a constant's value on the stack",
+        );
+        self.u_add_builtin(
+            "_literal",
+            TF::i_literal,
+            "_literal ( opcode -- ) loads a number on the stack",
+        );
+        self.u_add_builtin(
+            "_string",
+            TF::i_string,
+            "_string ( opcode -- ) loads a string pointer on the stack",
+        );
+        self.u_add_builtin(
+            "_definition",
+            TF::i_builtin,
+            "_definition ( opcode -- ) executes a colon definition",
+        );
+        self.u_add_builtin(
+            "_branch",
+            TF::i_branch,
+            "_branch ( opcode -- ) executes an unconditional branch",
+        );
+        self.u_add_builtin(
+            "_branch0",
+            TF::i_branch0,
+            "_branch0 ( opcode --  executes a branch if zero",
+        );
+        self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
+        self.u_add_builtin(
+            "_exit",
+            TF::i_exit,
+            "_exit ( opcode -- ) returns from the current definition",
+        );
+        self.u_add_builtin(
+            "_next",
+            TF::i_next,
+            "_next ( opcode -- ) end of word - continue to the next one",
+        );
+        self.u_add_builtin(
+            "_marker",
+            TF::i_marker,
+            "_marker is a no-op and placeholder",
+        );
+        self.u_add_builtin(
+            "_marker",
+            TF::i_marker,
+            "_marker is a no-op and placeholder",
+        );
+
+        // Start of normal functions
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");
@@ -437,6 +447,62 @@ impl TF {
             TF::f_type,
             "type: print a string using pointer on stack",
         );
-        self.u_add_builtin("recurse", TF::f_recurse, "recurse")
+        self.u_add_builtin(
+            "recurse",
+            TF::f_recurse,
+            "recurse ( -- ) implements recursion inside a word definition",
+        );
+        self.u_add_builtin(
+            "\\",
+            TF::f_backslash,
+            "\\ ( -- ) Comment: ignore the remainder of the line",
+        );
+        self.u_add_builtin(
+            "(",
+            TF::f_l_paren,
+            "( <text> ) Inline comment - text inside the parens is ignored",
+        );
+        self.u_add_builtin(
+            "variable",
+            TF::f_variable,
+            "variable <name> creates a new variable in the dictionary",
+        );
+        self.u_add_builtin(
+            "constant",
+            TF::f_constant,
+            "constant <name> ( n -- ) creates and initializes a new constant in the dictionary",
+        );
+        self.u_add_builtin(
+            "create",
+            TF::f_create,
+            "create <name> ( -- ) creates a name field in the dictionary",
+        );
+        self.u_add_builtin(
+            "pack$",
+            TF::f_pack_d,
+            "pack$ ( src n dest -- ) copies a counted string to a new location",
+        );
+        self.u_add_builtin(
+            "eval",
+            TF::f_eval,
+            "eval ( dest -- ) interprets a line of tokens from the TIB",
+        );
+        self.u_add_builtin(
+            ",",
+            TF::f_comma,
+            ", ( n -- ) copies the top of the stack to the top of the dictionary",
+        );
+        self.u_add_builtin(
+            ";",
+            TF::f_semicolon,
+            "; ( -- ) terminate a definition, resetting to interpret mode",
+        );
+        self.f_immediate();
+        self.u_add_builtin(
+            "immediate?",
+            TF::f_immediate_q,
+            "immediate? ( nfa -- T | F ) Determines if a word is immediate",
+        );
+        self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
     }
 }
