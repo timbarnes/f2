@@ -145,7 +145,7 @@ impl TF {
                     } else {
                         pc += offset as usize;
                     }
-                    pc += 1; // skip over the offset
+                    // pc += 1; // skip over the offset
                 }
                 BRANCH0 => {
                     pc += 1;
@@ -195,6 +195,62 @@ impl TF {
     /// Continue to the next word
     pub fn i_next(&mut self) {}
 
-    /// i_marker separates inner interpreters from other builtins
-    pub fn i_marker(&mut self) {}
+    /// f_marker <name> ( -- ) sets a location for FORGET
+    ///     It creates a definition called <name> that has the effect of resetting HERE and CONTEXT       
+    pub fn f_marker(&mut self) {}
+
+    /// f_if ( b -- ) if the top of stack is TRUE, continue, otherwise branch to ELSE; IMMEDIATE
+    ///     Implemented by compiling BRANCH0 and an offset word, putting the offset word's address on the return stack.
+    pub fn f_if(&mut self) {
+        // need to know the current address where the definition is happening. ***
+        // We should be able to use HERE
+        push!(self, BRANCH0);
+        self.f_comma();
+        push!(self, self.data[self.here_ptr]);
+        self.f_to_r();
+        push!(self, 0); // placeholder
+        self.f_comma();
+    }
+
+    /// f_else ( -- ) branch to THEN; IMMEDIATE
+    ///     Compile time: Compiles BRANCH0 and an offset word, putting the offset word's address on the return stack.
+    ///     Resolves the address on the return stack and stores into IF's branch offset.
+    pub fn f_else(&mut self) {
+        let here = self.data[self.here_ptr];
+        self.f_r_from();
+        let there = pop!(self);
+        self.data[there as usize] = here - there + 2; // to skip the branch
+        push!(self, BRANCH);
+        self.f_comma();
+        push!(self, self.data[self.here_ptr]);
+        self.f_to_r();
+        push!(self, 0);
+        self.f_comma();
+    }
+
+    /// f_then ( -- ) no execution semantics; IMMEDIATE
+    ///     Compile time: Resolves the address on the stack, storing it into IF or ELSE's branch offset.
+    ///                   Compiles a BRANCH and pushes it's offset address on the return stack.
+    pub fn f_then(&mut self) {
+        let here = self.data[self.here_ptr];
+        self.f_r_from();
+        let there = pop!(self);
+        println!("Here:{} There:{}", here, there);
+        self.data[there as usize] = here - there;
+    }
+
+    /// f_for ( -- ) no execution semantics; IMMEDIATE
+    ///     Compile time: Compiles a BRANCH0 and an offset placeholder. Puts the offset's address on the return stack.
+    pub fn f_for(&mut self) {
+        push!(self, BRANCH0);
+        self.f_comma();
+        push!(self, self.data[self.here_ptr]);
+        self.f_to_r();
+        push!(self, 0); // placeholder
+        self.f_comma();
+    }
+
+    /// f_next ( -- ) decrement loop counter; if <= 0, continue; otherwise push loop counter and branch back; IMMEDIATE
+    ///     Compile time: Resolves the address on the stack, storing it into FOR's branch offset.
+    pub fn f_next(&mut self) {}
 }
