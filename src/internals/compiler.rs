@@ -2,7 +2,7 @@
 
 use crate::engine::{
     ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, FALSE,
-    IMMEDIATE_MASK, INNERS, LITERAL, NEXT, STACK_START, STRING, TF, TRUE, VARIABLE,
+    IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRLIT, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
 
@@ -85,7 +85,7 @@ impl TF {
             if self.should_exit() {
                 break;
             } else {
-                // self.f_flush();
+                self.set_abort_flag(false);
                 self.f_query();
                 self.f_eval(); // interpret the contents of the line
                 if self.show_stack {
@@ -109,7 +109,7 @@ impl TF {
                 VARIABLE => self.i_variable(),
                 CONSTANT => self.i_constant(),
                 LITERAL => self.i_literal(),
-                STRING => self.i_string(),
+                STRLIT => self.i_strlit(),
                 DEFINITION => self.i_definition(),
                 BRANCH => self.i_branch(),
                 BRANCH0 => self.i_branch0(),
@@ -501,7 +501,7 @@ impl TF {
                         print!("{} ", self.data[index as usize + 1]);
                         index += 1;
                     }
-                    STRING => {}                 // print string contents
+                    STRLIT => {}                 // print string contents
                     DEFINITION => print!("???"), // Can't have a definition inside a definition
                     BRANCH => {
                         print!("branch:{} ", self.data[index as usize + 1]);
