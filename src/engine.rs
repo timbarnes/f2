@@ -39,6 +39,8 @@ pub const ABORT: i64 = 8;
 pub const EXIT: i64 = 9;
 pub const NEXT: i64 = 10;
 
+pub const INNERS: i64 = 15; // dictionary code values less than this are inner interpreters, not cfa values.
+
 //#[derive(Debug)]
 pub struct TF {
     pub data: [i64; DATA_SIZE],

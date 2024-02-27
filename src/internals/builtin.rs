@@ -133,6 +133,70 @@ impl TF {
     }
 
     pub fn add_builtins(&mut self) {
+        // Inner interpreters occupy the addresses lower than 100
+        self.u_add_builtin(
+            "_builtin",
+            TF::i_builtin,
+            "_builtin ( opcode -- ) executes the builtin on the stack",
+        );
+        self.u_add_builtin(
+            "_variable",
+            TF::i_variable,
+            "variable ( opcode -- ) loads a variable's address on the stack",
+        );
+        self.u_add_builtin(
+            "_constant",
+            TF::i_constant,
+            "_constant ( opcode -- ) loads a constant's value on the stack",
+        );
+        self.u_add_builtin(
+            "_literal",
+            TF::i_literal,
+            "_literal ( opcode -- ) loads a number on the stack",
+        );
+        self.u_add_builtin(
+            "_string",
+            TF::i_string,
+            "_string ( opcode -- ) loads a string pointer on the stack",
+        );
+        self.u_add_builtin(
+            "_definition",
+            TF::i_builtin,
+            "_definition ( opcode -- ) executes a colon definition",
+        );
+        self.u_add_builtin(
+            "_branch",
+            TF::i_branch,
+            "_branch ( opcode -- ) executes an unconditional branch",
+        );
+        self.u_add_builtin(
+            "_branch0",
+            TF::i_branch0,
+            "_branch0 ( opcode --  executes a branch if zero",
+        );
+        self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
+        self.u_add_builtin(
+            "_exit",
+            TF::i_exit,
+            "_exit ( opcode -- ) returns from the current definition",
+        );
+        self.u_add_builtin(
+            "_next",
+            TF::i_next,
+            "_next ( opcode -- ) end of word - continue to the next one",
+        );
+        self.u_add_builtin(
+            "_marker",
+            TF::i_marker,
+            "_marker is a no-op and placeholder",
+        );
+        self.u_add_builtin(
+            "_marker",
+            TF::i_marker,
+            "_marker is a no-op and placeholder",
+        );
+
+        // Start of normal functions
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");
@@ -434,5 +498,11 @@ impl TF {
             "; ( -- ) terminate a definition, resetting to interpret mode",
         );
         self.f_immediate();
+        self.u_add_builtin(
+            "immediate?",
+            TF::f_immediate_q,
+            "immediate? ( nfa -- T | F ) Determines if a word is immediate",
+        );
+        self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
     }
 }

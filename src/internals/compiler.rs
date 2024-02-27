@@ -2,7 +2,7 @@
 
 use crate::engine::{
     ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, FALSE,
-    IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRING, TF, TRUE, VARIABLE,
+    IMMEDIATE_MASK, INNERS, LITERAL, NEXT, STACK_START, STRING, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
 
@@ -45,6 +45,17 @@ impl TF {
         let mut str_addr = self.data[self.data[self.context_ptr] as usize] as usize;
         str_addr |= IMMEDIATE_MASK;
         self.data[self.data[self.context_ptr] as usize] = str_addr as i64;
+    }
+
+    /// immediate? ( nfa -- T | F ) Determines if a word is immediate or not
+    pub fn f_immediate_q(&mut self) {
+        if stack_ok!(self, 1, "immediate?") {
+            let nfa = pop!(self) as usize;
+            let name_ptr = self.data[nfa] as usize;
+            let immed = name_ptr & IMMEDIATE_MASK;
+            let result = if immed == 0 { FALSE } else { TRUE };
+            push!(self, result);
+        }
     }
 
     /// [  Install $INTERPRET in 'EVAL
@@ -92,18 +103,19 @@ impl TF {
         if stack_ok!(self, 1, "execute") {
             // call the appropriate inner interpreter
             let xt = pop!(self);
+            push!(self, xt + 1);
             match self.data[xt as usize] {
-                BUILTIN => self.i_builtin(xt + 1),
-                VARIABLE => self.i_variable(xt + 1),
-                CONSTANT => self.i_constant(xt + 1),
-                LITERAL => self.i_literal(xt + 1),
-                STRING => self.i_string(xt + 1),
-                DEFINITION => self.i_definition(xt + 1),
-                BRANCH => self.i_branch(xt + 1),
-                BRANCH0 => self.i_branch0(xt + 1),
-                ABORT => self.i_abort(xt + 1),
-                EXIT => self.i_exit(xt + 1),
-                NEXT => self.i_next(xt + 1),
+                BUILTIN => self.i_builtin(),
+                VARIABLE => self.i_variable(),
+                CONSTANT => self.i_constant(),
+                LITERAL => self.i_literal(),
+                STRING => self.i_string(),
+                DEFINITION => self.i_definition(),
+                BRANCH => self.i_branch(),
+                BRANCH0 => self.i_branch0(),
+                ABORT => self.i_abort(),
+                EXIT => self.i_exit(),
+                NEXT => self.i_next(),
                 _ => self
                     .msg
                     .error("execute", "Unknown inner interpreter", Some(xt)),
@@ -140,8 +152,18 @@ impl TF {
             self.f_find();
             if pop!(self) == TRUE {
                 // we found a word
-                self.f_comma(); // uses the cfa on the stack
-                pop!(self); // throw away the nfa
+                // if it's immediate, we need to execute it; otherwise continue compiling
+                let cfa = pop!(self);
+                self.f_immediate_q();
+                if pop!(self) == TRUE {
+                    // call the interpreter for this word
+                    push!(self, self.data[self.pad_ptr] as i64);
+                    self.f_d_interpret();
+                } else {
+                    // compile it
+                    push!(self, cfa);
+                    self.f_comma(); // uses the cfa on the stack
+                }
             } else {
                 self.f_number_q();
                 if pop!(self) == TRUE {
@@ -236,14 +258,14 @@ impl TF {
     /// f_comma ( n -- ) compile a value into a definition
     pub fn f_comma(&mut self) {
         self.data[self.data[self.here_ptr] as usize] = pop!(self);
-        self.here_ptr += 1;
+        self.data[self.here_ptr] += 1;
     }
 
     /// f_literal ( n -- ) compile a literal number with it's inner interpreter code pointer
     pub fn f_literal(&mut self) {
-        self.data[self.here_ptr] = LITERAL;
-        self.data[self.here_ptr + 1] = pop!(self);
-        self.here_ptr += 2;
+        push!(self, LITERAL);
+        self.f_comma();
+        self.f_comma();
     }
 
     /// UNIQUE? (s -- s )
@@ -257,7 +279,7 @@ impl TF {
         }
     }
 
-    /// ' (TICK) <name> ( -- a | FALSE )
+    /// ' (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
@@ -385,13 +407,21 @@ impl TF {
     pub fn f_colon(&mut self) {
         self.set_compile_mode(true);
         self.f_create(); // gets the name and makes a new dictionary entry
+        push!(self, DEFINITION);
+        self.f_comma();
     }
 
     /// ; terminates a definition, writing the cfa for EXIT, and resetting to interpret mode
+    ///   It has to write the exit code word, and add a back pointer
+    ///   It also has to update HERE and CONTEXT.
+    ///   Finally it switches out of compile mode
     pub fn f_semicolon(&mut self) {
-        // push the cfa of EXIT
-        // self.f_comma(); // write it to the word
         // add a back pointer and update HERE
+        push!(self, EXIT);
+        self.f_comma();
+        self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+        self.data[self.here_ptr] += 2; // over EXIT and back pointer
+        self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
         self.set_compile_mode(false);
     }
 
@@ -442,6 +472,61 @@ impl TF {
             self.strings[dest + i] = self.strings[source + i];
         }
         push!(self, dest as i64);
+    }
+
+    /// see <name> ( -- ) prints the definition of a word
+    pub fn f_see(&mut self) {
+        self.f_tick(); // finds the address of the word
+        let cfa = pop!(self);
+        if cfa != FALSE {
+            print!(": ");
+            let name = self.u_get_string(self.data[cfa as usize - 1] as usize);
+            print!("{name} ");
+            let mut index = cfa as usize + 1; // skip the inner interpreter
+            loop {
+                let cfa = self.data[index];
+                match cfa {
+                    BUILTIN => {
+                        let opcode = self.data[self.data[index as usize + 1] as usize] as usize;
+                        let name = &self.builtins[opcode].name;
+                        println!("{name} ");
+                        index += 1; // we consumed an extra cell
+                    }
+                    VARIABLE => {} // print name
+                    CONSTANT => {} // print name
+                    LITERAL => {
+                        println!("{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    STRING => {}                   // print string contents
+                    DEFINITION => println!("???"), // Can't have a definition inside a definition
+                    BRANCH => {
+                        print!("branch:{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    BRANCH0 => {
+                        print!("branch0:{} ", self.data[index as usize + 1]);
+                        index += 1;
+                    }
+                    ABORT => println!("abort "),
+                    EXIT => {
+                        println!(";");
+                        break;
+                    }
+                    NEXT => {
+                        println!(";");
+                        break;
+                    }
+                    _ => {
+                        // it's a word
+                        let word = self.data[self.data[index] as usize - 1]; // nfa address
+                        let name = self.u_get_string(word as usize);
+                        println!("{name}");
+                    }
+                }
+                index += 1;
+            }
+        }
     }
 
     /*  fn f_d_pack(&mut self) {
