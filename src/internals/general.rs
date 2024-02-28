@@ -195,6 +195,7 @@ impl TF {
         }
     }
 
+    /// >r ( n -- ) Pops the stack, placing the value on the return stack
     pub fn f_to_r(&mut self) {
         if stack_ok!(self, 1, ">r") {
             let value = pop!(self);
@@ -203,42 +204,30 @@ impl TF {
         }
     }
 
+    /// r> ( -- n ) Pops the return stack, pushing the value to the calculation stack
     pub fn f_r_from(&mut self) {
         push!(self, self.data[self.return_ptr]);
         self.return_ptr += 1;
     }
 
+    /// r@ ( -- n ) Gets the top value from the return stack, pushing the value to the calculation stack
     pub fn f_r_get(&mut self) {
         push!(self, self.data[self.return_ptr]);
     }
 
+    /// i ( -- n ) Pushes the current loop index to the calculation stack
     pub fn f_i(&mut self) {
-        // print the index of the current top-level loop
-        if self.return_stack.is_empty() {
-            self.msg.warning(
-                "I",
-                "Can only be used inside a FOR .. NEXT structure",
-                None::<bool>,
-            );
-        } else {
-            push!(self, self.return_stack[self.return_stack.len() - 1]);
-        }
+        push!(self, self.data[self.return_ptr]);
     }
 
+    /// j ( -- n ) Pushes the second level (outer) loop index to the calculation stack
     pub fn f_j(&mut self) {
-        // print the index of the current second-level (outer) loop
-        if self.return_stack.len() < 2 {
-            self.msg.warning(
-                "I",
-                "Can only be used inside a nested DO .. LOOP structure",
-                None::<bool>,
-            );
-        } else {
-            push!(self, self.return_stack[self.return_stack.len() - 2]);
-        }
+        push!(self, self.data[self.return_ptr + 1]);
     }
 
+    /// recurse ( -- ) Branches to the beginning of the current word.
+    ///     Branch distance needs to be calculated somehow... ***
     pub fn f_recurse(&mut self) {
-        self.set_program_counter(0);
+        self.msg.error("recurse", "Not implemented", None::<bool>);
     }
 }

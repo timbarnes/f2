@@ -457,6 +457,7 @@ impl TF {
             TF::f_l_paren,
             "( <text> ) Inline comment - text inside the parens is ignored",
         );
+        self.f_immediate();
         self.u_add_builtin(
             "variable",
             TF::f_variable,
@@ -494,9 +495,9 @@ impl TF {
         );
         self.f_immediate();
         self.u_add_builtin(
-            "immediate?",
+            "immed?",
             TF::f_immediate_q,
-            "immediate? ( nfa -- T | F ) Determines if a word is immediate",
+            "immed? ( cfa -- T | F ) Determines if a word is immediate",
         );
         self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
         self.u_add_builtin(

@@ -235,22 +235,36 @@ impl TF {
         let here = self.data[self.here_ptr];
         self.f_r_from();
         let there = pop!(self);
-        println!("Here:{} There:{}", here, there);
+        // println!("Here:{} There:{}", here, there);
         self.data[there as usize] = here - there;
     }
 
     /// f_for ( -- ) no execution semantics; IMMEDIATE
-    ///     Compile time: Compiles a BRANCH0 and an offset placeholder. Puts the offset's address on the return stack.
+    ///     Compile time: Compiles a >R and puts the pc on the compute stack.
     pub fn f_for(&mut self) {
-        push!(self, BRANCH0);
-        self.f_comma();
-        push!(self, self.data[self.here_ptr]);
-        self.f_to_r();
-        push!(self, 0); // placeholder
+        push!(self, self.data[self.here_ptr]); // so NEXT can calculate the BRANCH0
+        push!(self, 278); // *** hardwired address of >R !!! Not good !!!
         self.f_comma();
     }
 
     /// f_next ( -- ) decrement loop counter; if <= 0, continue; otherwise push loop counter and branch back; IMMEDIATE
     ///     Compile time: Resolves the address on the stack, storing it into FOR's branch offset.
-    pub fn f_next(&mut self) {}
+    pub fn f_next(&mut self) {
+        push!(self, 282); // R>
+        self.f_comma();
+        push!(self, 190); // DUP
+        self.f_comma();
+        push!(self, LITERAL);
+        self.f_comma();
+        push!(self, 1);
+        self.f_comma();
+        push!(self, 102); // -
+        self.f_comma();
+        push!(self, BRANCH0);
+        self.f_comma();
+        let here = self.data[self.here_ptr];
+        let there = pop!(self);
+        push!(self, there - here);
+        self.f_comma();
+    }
 }
