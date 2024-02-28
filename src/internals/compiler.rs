@@ -163,8 +163,13 @@ impl TF {
                     push!(self, self.data[self.pad_ptr] as i64);
                     self.f_d_interpret();
                 } else {
-                    // compile it
-                    push!(self, cfa);
+                    // check if it's a builtin, and compile appropriately
+                    let indirect = self.data[cfa as usize] as usize;
+                    if indirect & BUILTIN_MASK != 0 {
+                        push!(self, indirect as i64);
+                    } else {
+                        push!(self, cfa);
+                    }
                     self.f_comma(); // uses the cfa on the stack
                 }
             } else {
@@ -519,14 +524,15 @@ impl TF {
                     _ => {
                         // it's a colon definition or a builtin
                         let mut cfa = self.data[index] as usize;
-                        let mask = cfa & BUILTIN_MASK;
-                        if mask != 0 {
-                            cfa &= !BUILTIN_MASK;
-                            let name = &self.builtins[cfa].name;
-                            print!("{name}");
-                        } else {
-                            let word = self.data[self.data[index] as usize - 1]; // nfa address
+                        let mut mask = cfa & BUILTIN_MASK;
+                        if mask == 0 {
+                            let word = self.data[self.data[cfa] as usize - 1]; // nfa address
                             let name = self.u_get_string(word as usize);
+                            print!("{name} ");
+                        } else {
+                            mask = !BUILTIN_MASK;
+                            cfa &= mask;
+                            let name = &self.builtins[cfa].name;
                             print!("{name} ");
                         }
                     }
