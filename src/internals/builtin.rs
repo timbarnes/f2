@@ -366,6 +366,7 @@ impl TF {
             "immediate sets the immediate flag on the most recently defined word",
         );
         self.u_add_builtin("[", TF::f_lbracket, "[ ( -- ) Exit compile mode");
+        self.f_immediate();
         self.u_add_builtin("]", TF::f_rbracket, "] ( -- ) Enter compile mode");
         self.u_add_builtin(
             "quit",

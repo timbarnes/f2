@@ -39,7 +39,7 @@ macro_rules! push {
 }
 
 impl TF {
-    /// immediate - sets the immediate flag on the most recently defined word
+    /// immediate ( -- ) sets the immediate flag on the most recently defined word
     /// Context pointer links to the most recent name field
     pub fn f_immediate(&mut self) {
         let mut str_addr = self.data[self.data[self.context_ptr] as usize] as usize;
@@ -47,11 +47,11 @@ impl TF {
         self.data[self.data[self.context_ptr] as usize] = str_addr as i64;
     }
 
-    /// immediate? ( nfa -- T | F ) Determines if a word is immediate or not
+    /// immediate? ( cfa -- T | F ) Determines if a word is immediate or not
     pub fn f_immediate_q(&mut self) {
         if stack_ok!(self, 1, "immediate?") {
-            let nfa = pop!(self) as usize;
-            let name_ptr = self.data[nfa] as usize;
+            let cfa = pop!(self) as usize;
+            let name_ptr = self.data[cfa - 1] as usize;
             let immed = name_ptr & IMMEDIATE_MASK;
             let result = if immed == 0 { FALSE } else { TRUE };
             push!(self, result);
@@ -151,9 +151,9 @@ impl TF {
         if stack_ok!(self, 1, "$compile") {
             self.f_find();
             if pop!(self) == TRUE {
+                let cfa = top!(self);
                 // we found a word
                 // if it's immediate, we need to execute it; otherwise continue compiling
-                let cfa = pop!(self);
                 self.f_immediate_q();
                 if pop!(self) == TRUE {
                     // call the interpreter for this word
@@ -187,9 +187,6 @@ impl TF {
             self.f_find(); // (s -- nfa, cfa, T | s F )
             if pop!(self) == TRUE {
                 // we have a definition
-                let cfa = pop!(self);
-                let _nfa = pop!(self);
-                push!(self, cfa);
                 self.f_execute();
             } else {
                 // try number?
@@ -206,7 +203,7 @@ impl TF {
         }
     }
 
-    /// FIND (s -- nfa, cfa, T | s F ) Search the dictionary for the token indexed through s.
+    /// FIND (s -- cfa T | s F ) Search the dictionary for the token indexed through s.
     /// If not found, return the string address so NUMBER? can look at it
     pub fn f_find(&mut self) {
         if stack_ok!(self, 1, "find") {
@@ -227,7 +224,6 @@ impl TF {
                 link = self.data[link] as usize;
             }
             if result {
-                push!(self, link as i64 + 1);
                 push!(self, link as i64 + 2);
                 push!(self, TRUE);
             } else {
@@ -295,10 +291,7 @@ impl TF {
             self.f_type(); // a warning message
             push!(self, FALSE);
         } else {
-            // we found it, so convert the cfa address to an execution token
-            let cfa = pop!(self);
-            pop!(self); // don't need the nfa
-            push!(self, cfa); // push the cfa
+            // we found it, so leave the cfa on the stack
         }
     }
 
