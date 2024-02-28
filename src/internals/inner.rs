@@ -3,8 +3,8 @@
 /// Core functions to execute specific types of objects
 ///
 use crate::engine::{
-    ABORT, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, LITERAL, NEXT, RET_START, STRLIT,
-    TF, VARIABLE,
+    ABORT, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, LITERAL, NEXT,
+    RET_START, STRLIT, TF, VARIABLE,
 };
 
 macro_rules! pop {
@@ -34,8 +34,7 @@ impl TF {
     ///
     pub fn i_builtin(&mut self) {
         let code = pop!(self);
-        let index = self.data[code as usize] as usize;
-        let op = &self.builtins[index];
+        let op = &self.builtins[code as usize];
         let func = op.code;
         func(self);
     }
@@ -99,11 +98,14 @@ impl TF {
             // println!("{code}");
             match code {
                 BUILTIN => {
-                    let index = self.data[pc + 1] as usize;
-                    let op = &self.builtins[index];
-                    let func = op.code;
-                    func(self);
-                    // return
+                    self.msg
+                        .error("i_definition", "Found BUILTIN???", Some(code));
+                    /*                     let index = self.data[pc + 1] as usize;
+                                      let op = &self.builtins[index];
+                                      let func = op.code;
+                                      func(self);
+                    */
+ // return
                     self.f_r_from();
                     pc = pop!(self) as usize;
                 }
@@ -172,9 +174,18 @@ impl TF {
                 NEXT => self.i_next(),
                 _ => {
                     // we have a word address
-                    push!(self, pc as i64 + 1); // the return address is the next object in the list
-                    self.f_to_r(); // save it on the return stack
-                    pc = code as usize;
+                    // see if it's a builtin:
+                    let mut builtin_flag = code as usize & BUILTIN_MASK;
+                    if builtin_flag != 0 {
+                        builtin_flag = code as usize & !BUILTIN_MASK;
+                        push!(self, builtin_flag as i64);
+                        self.i_builtin();
+                        pc += 1;
+                    } else {
+                        push!(self, pc as i64 + 1); // the return address is the next object in the list
+                        self.f_to_r(); // save it on the return stack
+                        pc = code as usize;
+                    }
                 }
             }
         }

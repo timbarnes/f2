@@ -1,7 +1,7 @@
 // Compiler and Interpreter
 
 use crate::engine::{
-    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, FALSE,
+    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, FALSE,
     IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRLIT, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
@@ -105,7 +105,7 @@ impl TF {
             let xt = pop!(self);
             push!(self, xt + 1);
             match self.data[xt as usize] {
-                BUILTIN => self.i_builtin(),
+                BUILTIN => self.msg.error("f_execute", "BUILTIN found", Some(xt)), //self.i_builtin(),
                 VARIABLE => self.i_variable(),
                 CONSTANT => self.i_constant(),
                 LITERAL => self.i_literal(),
@@ -116,9 +116,12 @@ impl TF {
                 ABORT => self.i_abort(),
                 EXIT => self.i_exit(),
                 NEXT => self.i_next(),
-                _ => self
-                    .msg
-                    .error("execute", "Unknown inner interpreter", Some(xt)),
+                _ => {
+                    pop!(self);
+                    let cfa = self.data[xt as usize] as usize & !BUILTIN_MASK;
+                    push!(self, cfa as i64);
+                    self.i_builtin();
+                }
             }
         }
     }
@@ -514,10 +517,18 @@ impl TF {
                         break;
                     }
                     _ => {
-                        // it's a word
-                        let word = self.data[self.data[index] as usize - 1]; // nfa address
-                        let name = self.u_get_string(word as usize);
-                        print!("{name} ");
+                        // it's a colon definition or a builtin
+                        let mut cfa = self.data[index] as usize;
+                        let mask = cfa & BUILTIN_MASK;
+                        if mask != 0 {
+                            cfa &= !BUILTIN_MASK;
+                            let name = &self.builtins[cfa].name;
+                            print!("{name}");
+                        } else {
+                            let word = self.data[self.data[index] as usize - 1]; // nfa address
+                            let name = self.u_get_string(word as usize);
+                            print!("{name} ");
+                        }
                     }
                 }
                 index += 1;

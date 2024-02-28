@@ -4,7 +4,7 @@ use crate::engine::PAD_START;
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
-use crate::engine::{BUILTIN, FALSE, STR_START, TF, TIB_START, VARIABLE};
+use crate::engine::{BUILTIN_MASK, FALSE, STR_START, TF, TIB_START, VARIABLE};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -129,7 +129,8 @@ impl TF {
         self.builtins
             .push(BuiltInFn::new(name.to_owned(), code, doc.to_string()));
         // now build the DATA space record
-        self.u_make_word(name, &[BUILTIN, self.builtins.len() as i64 - 1]);
+        let cfa = (self.builtins.len() - 1) | BUILTIN_MASK;
+        self.u_make_word(name, &[cfa as i64]);
     }
 
     pub fn add_builtins(&mut self) {
