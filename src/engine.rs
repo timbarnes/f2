@@ -16,9 +16,10 @@ pub const RET_START: usize = DATA_SIZE - 1; // return stack counts downwards
 pub const WORD_START: usize = 0; // data area counts up from the bottom (builtins, words, variables etc.)
 
 // STRING AREA constants
-pub const TIB_START: usize = 0;
-pub const PAD_START: usize = TIB_START + BUF_SIZE;
-pub const STR_START: usize = PAD_START + BUF_SIZE;
+pub const TIB_START: usize = 0; // Text input buffer, used by readers
+pub const PAD_START: usize = TIB_START + BUF_SIZE; // Scratchpad buffer, used by PARSE and friends
+pub const TMP_START: usize = PAD_START + BUF_SIZE; // Temporary buffer, used for string input
+pub const STR_START: usize = TMP_START + BUF_SIZE; // Free space for additional strings
 
 // GENERAL constants
 pub const TRUE: i64 = -1; // forth convention for true and false
@@ -52,7 +53,8 @@ pub struct TF {
     pub context_ptr: usize,
     pub eval_ptr: usize, // used to turn compile mode on and off
     pub base_ptr: usize,
-    pub pad_ptr: usize,    // the current s".."" string
+    pub pad_ptr: usize,    // string buffer for parser
+    pub tmp_ptr: usize,    // temporary string buffer
     pub string_ptr: usize, // points to the beginning of free string space
     pub last_ptr: usize,   // points to name of top word
     pub hld_ptr: usize,    // for numeric string work
@@ -95,6 +97,7 @@ impl TF {
                 eval_ptr: 0,
                 base_ptr: 0,
                 pad_ptr: 0,
+                tmp_ptr: 0,
                 last_ptr: 0,
                 hld_ptr: 0,
                 file_mode: FileMode::Unset,

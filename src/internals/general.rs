@@ -223,4 +223,70 @@ impl TF {
     pub fn f_recurse(&mut self) {
         self.msg.error("recurse", "Not implemented", None::<bool>);
     }
+
+    /// s-copy (s-from s-to -- s-to )
+    pub fn f_s_copy(&mut self) {
+        if stack_ok!(self, 3, "s-copy") {
+            let dest = pop!(self) as usize;
+            let result_ptr = dest as i64;
+            let source = pop!(self) as usize;
+            let length = self.strings[source] as u8 as usize + 1;
+            let mut i = 0;
+            while i < length {
+                self.strings[dest + i] = self.strings[source + i];
+                i += 1;
+            }
+            self.data[self.string_ptr] += length as i64;
+            push!(self, result_ptr);
+        }
+    }
+    /// s-create ( s-from -- s-to ) copies a counted string into the next empty space, updating the free space pointer
+    pub fn f_s_create(&mut self) {
+        if stack_ok!(self, 1, "s-create") {
+            let source = top!(self) as usize;
+            let length = self.strings[source] as usize;
+            let dest = self.data[self.string_ptr];
+            push!(self, dest); // destination
+            self.f_s_copy();
+            self.data[self.string_ptr] += length as i64 + 1;
+            push!(self, dest);
+        }
+    }
+
+    /// s-parse ( c -- ) Get a c-delimited string from TIB, and place in TMP
+    pub fn f_s_parse(&mut self) {
+        let delim = pop!(self);
+        // need to call (parse) to get the string directly from the TIB
+        push!(self, self.data[self.tib_ptr] + self.data[self.tib_in_ptr]);
+        push!(
+            self,
+            self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1
+        );
+        push!(self, delim);
+        self.f_parse_p();
+        let delta = pop!(self);
+        let length = pop!(self);
+        let addr = pop!(self);
+        if length > 0 {
+            self.u_str_copy(
+                (addr + delta) as usize,
+                self.data[self.tmp_ptr] as usize,
+                length as usize,
+                false,
+            );
+        }
+    }
+
+    /// .s" (s -- ) Print a string using the string address on the stack
+    pub fn f_dot_s_quote(&mut self) {
+        if stack_ok!(self, 1, ".s") {
+            let addr = pop!(self) as usize;
+            let length = self.strings[addr] as usize + 1;
+            let mut i = 1;
+            while i <= length {
+                print!("{}", self.strings[addr + i]);
+                i += 1;
+            }
+        }
+    }
 }

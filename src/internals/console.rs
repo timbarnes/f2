@@ -133,10 +133,10 @@ impl TF {
         self.f_parse();
     }
 
-    pub fn f_dot_s_quote(&mut self) {
-        print!("{:?}", self.u_get_string(self.pad_ptr));
-    }
-
+    /*     pub fn f_dot_s_quote(&mut self) {
+           print!("{:?}", self.u_get_string(self.pad_ptr));
+       }
+    */
     /// TYPE - print a string, using the string address on the stack
     pub fn f_type(&mut self) {
         if stack_ok!(self, 1, "type") {

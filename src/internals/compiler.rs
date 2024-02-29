@@ -433,7 +433,7 @@ impl TF {
         let length = self.strings[self.data[self.pad_ptr] as usize] as u8 as i64;
         push!(self, length);
         push!(self, self.data[self.string_ptr]);
-        self.f_pack_d(); // make a new string with the name from PAD
+        self.f_smove(); // make a new string with the name from PAD
         self.data[self.data[self.here_ptr] as usize] = pop!(self); // the string header
         self.data[self.string_ptr] += length + 1; // update the free string pointer
         self.data[self.last_ptr] = self.data[self.here_ptr];
@@ -467,11 +467,11 @@ impl TF {
         }
     }
 
-    /// string <name> ( s -- ) Creates and initializez a new string variable in the dictionary
+    /// string <name> ( s -- ) Creates and initializez a new string from the PAD
     pub fn f_string(&mut self) {}
 
     /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
-    pub fn f_pack_d(&mut self) {
+    pub fn f_smove(&mut self) {
         let dest = pop!(self) as usize;
         let length = pop!(self) as usize;
         let source = pop!(self) as usize;

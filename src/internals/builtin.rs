@@ -1,10 +1,10 @@
-use crate::engine::PAD_START;
 /// Interpreter for builtins
 ///
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
 use crate::engine::{BUILTIN_MASK, FALSE, STR_START, TF, TIB_START, VARIABLE};
+use crate::engine::{PAD_START, TMP_START};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -31,36 +31,38 @@ impl TF {
         // install system variables in data area
         // hand craft S-HERE (free string pointer) so write_string() can work
         self.data[0] = 0;
-        self.data[1] = STR_START as i64; //
+        self.data[1] = 0;
+        self.data[2] = STR_START as i64; //
         self.strings[STR_START] = 6 as char; // length of "s-here"
         for (i, c) in "s-here".chars().enumerate() {
             self.strings[i + STR_START + 1] = c;
         }
-        self.string_ptr = 3;
-        self.data[2] = VARIABLE;
-        self.data[3] = (STR_START + 7) as i64; // update the value of S-HERE
-        self.data[4] = 0; // back pointer
+        self.string_ptr = 4;
+        self.data[3] = VARIABLE;
+        self.data[4] = (STR_START + 7) as i64; // update the value of S-HERE
+        self.data[5] = 1; // back pointer
                           // hand craft HERE, because it's needed by make_word
         let name_pointer = self.u_new_string("here");
-        self.data[5] = name_pointer as i64;
-        self.data[6] = VARIABLE;
-        self.data[7] = 9; // the value of HERE
-        self.data[8] = 4; // back pointer
-        self.here_ptr = 7; // the address of the HERE variable
+        self.data[6] = name_pointer as i64;
+        self.data[7] = VARIABLE;
+        self.data[8] = 10; // the value of HERE
+        self.data[9] = 5; // back pointer
+        self.here_ptr = 8; // the address of the HERE variable
 
         // hand craft CONTEXT, because it's needed by make_word
-        self.data[9] = self.u_new_string("context") as i64;
-        self.data[10] = VARIABLE;
-        self.data[11] = 9;
-        self.data[12] = 8; // back pointer
-        self.context_ptr = 11;
-        self.data[self.here_ptr] = 13;
+        self.data[10] = self.u_new_string("context") as i64;
+        self.data[11] = VARIABLE;
+        self.data[12] = 10;
+        self.data[13] = 9; // back pointer
+        self.context_ptr = 12;
+        self.data[self.here_ptr] = 14;
 
         self.pad_ptr = self.u_make_variable("pad");
         self.data[self.pad_ptr] = PAD_START as i64;
         self.base_ptr = self.u_make_variable("base");
         self.data[self.base_ptr] = 10; // decimal
-                                       //self.tmp_ptr = self.make_variable("tmp");
+        self.tmp_ptr = self.u_make_variable("tmp");
+        self.data[self.tmp_ptr] = TMP_START as i64;
         self.tib_ptr = self.u_make_variable("'tib");
         self.data[self.tib_ptr] = 0;
         self.tib_size_ptr = self.u_make_variable("#tib");
@@ -99,12 +101,12 @@ impl TF {
         code_ptr + 1 // the location of the variable's value
     }
 
-    fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
-        // Create a constant
-        let code_ptr = self.u_make_word(name, &[val]); // install the name
-        code_ptr + 1
-    }
-
+    /* fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
+           // Create a constant
+           let code_ptr = self.u_make_word(name, &[val]); // install the name
+           code_ptr + 1
+       }
+    */
     /// u_make_word Install a new word with provided name and arguments
     /// back link is already in place
     /// place it HERE
@@ -476,7 +478,7 @@ impl TF {
         );
         self.u_add_builtin(
             "pack$",
-            TF::f_pack_d,
+            TF::f_smove,
             "pack$ ( src n dest -- ) copies a counted string to a new location",
         );
         self.u_add_builtin(
@@ -519,5 +521,25 @@ impl TF {
             "next ( -- ) decrement loop counter, and branch back if > 0",
         );
         self.f_immediate();
+        self.u_add_builtin(
+            "s-create",
+            TF::f_s_create,
+            "s-create ( s1 -- s2 ) Copy a string to the head of free space and return its address",
+        );
+        self.u_add_builtin(
+            ".s\"",
+            TF::f_dot_s_quote,
+            ".s\" ( s -- ) Print a string from a string address",
+        );
+        self.u_add_builtin(
+            "s-parse",
+            TF::f_s_parse,
+            "s-parse ( c -- ) Read a delimited string into TMP",
+        );
+        self.u_add_builtin(
+            "s-copy",
+            TF::f_s_copy,
+            "s-pcopy ( source dest -- ) Copy a counted string from source to dest",
+        );
     }
 }
