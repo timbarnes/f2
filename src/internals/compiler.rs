@@ -77,7 +77,6 @@ impl TF {
     }
 
     pub fn f_quit(&mut self) {
-        self.return_stack.clear();
         self.set_program_counter(0);
         self.f_abort();
         print!(" ok ");
@@ -417,7 +416,6 @@ impl TF {
     ///   It also has to update HERE and CONTEXT.
     ///   Finally it switches out of compile mode
     pub fn f_semicolon(&mut self) {
-        // add a back pointer and update HERE
         push!(self, EXIT);
         self.f_comma();
         self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
@@ -444,20 +442,29 @@ impl TF {
 
     /// variable <name> ( -- ) Creates a new variable in the dictionary
     pub fn f_variable(&mut self) {
-        self.f_create(); // gets a name and makes a name field in the dictionary
-        push!(self, VARIABLE);
-        self.f_comma(); // ( n -- )
-        push!(self, 0); // default initial value
-        self.f_comma();
+        if stack_ok!(self, 1, "constant") {
+            self.f_create(); // gets a name and makes a name field in the dictionary
+            push!(self, VARIABLE);
+            self.f_comma(); // ( n -- )
+            push!(self, 0); // default initial value
+            self.f_comma();
+            self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+            self.data[self.here_ptr] += 1; // over EXIT and back pointer
+            self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+        }
     }
 
     /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
     pub fn f_constant(&mut self) {
-        self.f_create(); // gets a name and makes a name field in the dictionary
-        push!(self, CONSTANT);
-        self.f_comma(); // ( n -- )
-        push!(self, 0); // default initial value
-        self.f_comma();
+        if stack_ok!(self, 1, "constant") {
+            self.f_create();
+            push!(self, CONSTANT);
+            self.f_comma();
+            self.f_comma(); // write the value from the stack
+            self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+            self.data[self.here_ptr] += 1; // over EXIT and back pointer
+            self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+        }
     }
 
     /// string <name> ( s -- ) Creates and initializez a new string variable in the dictionary

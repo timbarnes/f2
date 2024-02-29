@@ -45,7 +45,7 @@ pub struct TF {
     pub data: [i64; DATA_SIZE],
     pub strings: [char; STRING_SIZE], // storage for strings
     pub builtins: Vec<BuiltInFn>,     // the dictionary of builtins
-    pub return_stack: Vec<i64>,       // for do loops etc.
+    //pub return_stack: Vec<i64>,       // for do loops etc.
     pub here_ptr: usize,
     pub stack_ptr: usize,  // top of the linear space stack
     pub return_ptr: usize, // top of the return stack
@@ -86,7 +86,7 @@ impl TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
                 builtins: Vec::new(),
-                return_stack: Vec::new(),
+                //return_stack: Vec::new(),
                 here_ptr: WORD_START,
                 stack_ptr: STACK_START,
                 return_ptr: RET_START,

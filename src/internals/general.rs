@@ -52,13 +52,6 @@ macro_rules! pop1_push1 {
         }
     };
 }
-/* macro_rules! pop1 {
-    ($self:ident, $word:expr, $code:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $code(x);
-        }
-    };
-} */
 
 pub fn u_is_integer(s: &str) -> bool {
     s.parse::<i64>().is_ok()
