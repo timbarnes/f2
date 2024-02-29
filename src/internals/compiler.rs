@@ -442,16 +442,14 @@ impl TF {
 
     /// variable <name> ( -- ) Creates a new variable in the dictionary
     pub fn f_variable(&mut self) {
-        if stack_ok!(self, 1, "constant") {
-            self.f_create(); // gets a name and makes a name field in the dictionary
-            push!(self, VARIABLE);
-            self.f_comma(); // ( n -- )
-            push!(self, 0); // default initial value
-            self.f_comma();
-            self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
-            self.data[self.here_ptr] += 1; // over EXIT and back pointer
-            self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
-        }
+        self.f_create(); // gets a name and makes a name field in the dictionary
+        push!(self, VARIABLE);
+        self.f_comma(); // ( n -- )
+        push!(self, 0); // default initial value
+        self.f_comma();
+        self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+        self.data[self.here_ptr] += 1; // over EXIT and back pointer
+        self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
     }
 
     /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
@@ -486,65 +484,101 @@ impl TF {
     pub fn f_see(&mut self) {
         self.f_tick(); // finds the address of the word
         let cfa = pop!(self);
-        if cfa == FALSE || self.data[cfa as usize] != DEFINITION {
-            self.msg
-                .error("see", "Can only decompile colon definitions", None::<bool>);
+        if cfa == FALSE {
+            self.msg.warning("see", "Word not found", None::<bool>);
         } else {
-            print!(": ");
-            let name = self.u_get_string(self.data[cfa as usize - 1] as usize);
-            print!("{name} ");
-            let mut index = cfa as usize + 1; // skip the inner interpreter
-            loop {
-                let cfa = self.data[index];
-                match cfa {
-                    BUILTIN => {
-                        let opcode = self.data[self.data[index as usize + 1] as usize] as usize;
-                        let name = &self.builtins[opcode].name;
+            let nfa = self.data[cfa as usize - 1] as usize;
+            let is_immed = nfa & IMMEDIATE_MASK;
+            let xt = self.data[cfa as usize] as usize;
+            let is_builtin = xt & BUILTIN_MASK;
+            if is_builtin != 0 {
+                println!(
+                    "Builtin: {}",
+                    self.builtins[xt as usize & !BUILTIN_MASK].doc
+                );
+            } else {
+                // It's a definition of some kind
+                //xt &= ADDRESS_MASK; // get rid of any special bits
+                match xt as i64 {
+                    DEFINITION => {
+                        print!(": ");
+                        let name = self.u_get_string(nfa);
                         print!("{name} ");
-                        index += 1; // we consumed an extra cell
-                    }
-                    VARIABLE => {} // print name
-                    CONSTANT => {} // print name
-                    LITERAL => {
-                        print!("{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    STRLIT => {}                 // print string contents
-                    DEFINITION => print!("???"), // Can't have a definition inside a definition
-                    BRANCH => {
-                        print!("branch:{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    BRANCH0 => {
-                        print!("branch0:{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    ABORT => println!("abort "),
-                    EXIT => {
-                        println!(";");
-                        break;
-                    }
-                    NEXT => {
-                        println!(";");
-                        break;
-                    }
-                    _ => {
-                        // it's a colon definition or a builtin
-                        let mut cfa = self.data[index] as usize;
-                        let mut mask = cfa & BUILTIN_MASK;
-                        if mask == 0 {
-                            let word = self.data[self.data[cfa] as usize - 1]; // nfa address
-                            let name = self.u_get_string(word as usize);
-                            print!("{name} ");
-                        } else {
-                            mask = !BUILTIN_MASK;
-                            cfa &= mask;
-                            let name = &self.builtins[cfa].name;
-                            print!("{name} ");
+                        let mut index = cfa as usize + 1; // skip the inner interpreter
+                        loop {
+                            let xt = self.data[index];
+                            match xt {
+                                BUILTIN => {
+                                    let opcode =
+                                        self.data[self.data[index as usize + 1] as usize] as usize;
+                                    let name = &self.builtins[opcode].name;
+                                    print!("{name} ");
+                                    index += 1; // we consumed an extra cell
+                                }
+                                VARIABLE | CONSTANT => {
+                                    let name =
+                                        self.u_get_string(self.data[xt as usize - 1] as usize);
+                                    print!("{} ", name);
+                                }
+                                LITERAL => {
+                                    print!("{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                STRLIT => {}                 // print string contents
+                                DEFINITION => print!("???"), // Can't have a definition inside a definition
+                                BRANCH => {
+                                    print!("branch:{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                BRANCH0 => {
+                                    print!("branch0:{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                ABORT => println!("abort "),
+                                EXIT => {
+                                    print!("; ");
+                                    if is_immed != 0 {
+                                        println!("immediate");
+                                    } else {
+                                        println!();
+                                    }
+                                    break;
+                                }
+                                NEXT => {
+                                    println!(";");
+                                    break;
+                                }
+                                _ => {
+                                    // it's a colon definition or a builtin
+                                    let mut cfa = self.data[index] as usize;
+                                    let mut mask = cfa & BUILTIN_MASK;
+                                    if mask == 0 {
+                                        let word = self.data[self.data[cfa] as usize - 1]; // nfa address
+                                        let name = self.u_get_string(word as usize);
+                                        print!("{name} ");
+                                    } else {
+                                        mask = !BUILTIN_MASK;
+                                        cfa &= mask;
+                                        let name = &self.builtins[cfa].name;
+                                        print!("{name} ");
+                                    }
+                                }
+                            }
+                            index += 1;
                         }
                     }
+                    CONSTANT => println!(
+                        "Constant: {} = {}",
+                        self.u_get_string(self.data[cfa as usize - 1] as usize),
+                        self.data[cfa as usize]
+                    ),
+                    VARIABLE => println!(
+                        "Variable: {} = {}",
+                        self.u_get_string(self.data[cfa as usize - 1] as usize),
+                        self.data[cfa as usize + 1]
+                    ),
+                    _ => self.msg.error("see", "Unrecognized type", None::<bool>),
                 }
-                index += 1;
             }
         }
     }

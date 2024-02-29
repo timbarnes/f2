@@ -511,9 +511,9 @@ impl TF {
         self.f_immediate();
         self.u_add_builtin("else", TF::f_else, "else ( -- ) branch to then");
         self.f_immediate();
-        self.u_add_builtin("then", TF::f_then, "then ( -- ) continue");
+        self.u_add_builtin("then", TF::f_then, "then ( -- ) closes if expression");
         self.f_immediate();
-        self.u_add_builtin("for", TF::f_for, "for ( n -- ) continue");
+        self.u_add_builtin("for", TF::f_for, "for ( n -- ) initiates iterative loop");
         self.f_immediate();
         self.u_add_builtin(
             "next",
@@ -539,7 +539,7 @@ impl TF {
         self.u_add_builtin(
             "s-copy",
             TF::f_s_copy,
-            "s-pcopy ( source dest -- ) Copy a counted string from source to dest",
+            "s-copy ( source dest -- ) Copy a counted string from source to dest",
         );
     }
 }
