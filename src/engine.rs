@@ -23,23 +23,22 @@ pub const STR_START: usize = PAD_START + BUF_SIZE;
 // GENERAL constants
 pub const TRUE: i64 = -1; // forth convention for true and false
 pub const FALSE: i64 = 0;
-pub const ADDRESS_MASK: usize = 0x00FFFFFFFFFFFFFF; // to get rid of the immediate flag
-pub const IMMEDIATE_MASK: usize = 0x4000000000000000; // the immediate bit
+pub const ADDRESS_MASK: usize = 0x00FFFFFFFFFFFFFF; // to get rid of flags
+pub const IMMEDIATE_MASK: usize = 0x4000000000000000; // the immediate flag bit
+pub const BUILTIN_MASK: usize = 0x2000000000000000; // the builtin flag bit
 
 // Indices into builtins to drive execution of each data type
-pub const BUILTIN: i64 = 0;
-pub const VARIABLE: i64 = 1;
-pub const CONSTANT: i64 = 2;
-pub const LITERAL: i64 = 3;
-pub const STRLIT: i64 = 4;
-pub const DEFINITION: i64 = 5;
-pub const BRANCH: i64 = 6;
-pub const BRANCH0: i64 = 7;
-pub const ABORT: i64 = 8;
-pub const EXIT: i64 = 9;
-pub const NEXT: i64 = 10;
-
-pub const INNERS: i64 = 15; // dictionary code values less than this are inner interpreters, not cfa values.
+pub const BUILTIN: i64 = 1000;
+pub const VARIABLE: i64 = 1001;
+pub const CONSTANT: i64 = 1002;
+pub const LITERAL: i64 = 1003;
+pub const STRLIT: i64 = 1004;
+pub const DEFINITION: i64 = 1005;
+pub const BRANCH: i64 = 1006;
+pub const BRANCH0: i64 = 1007;
+pub const ABORT: i64 = 1008;
+pub const EXIT: i64 = 1009;
+pub const NEXT: i64 = 1010;
 
 //#[derive(Debug)]
 pub struct TF {

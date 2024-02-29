@@ -1,7 +1,7 @@
 // Compiler and Interpreter
 
 use crate::engine::{
-    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, FALSE,
+    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, FALSE,
     IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRLIT, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
@@ -39,7 +39,7 @@ macro_rules! push {
 }
 
 impl TF {
-    /// immediate - sets the immediate flag on the most recently defined word
+    /// immediate ( -- ) sets the immediate flag on the most recently defined word
     /// Context pointer links to the most recent name field
     pub fn f_immediate(&mut self) {
         let mut str_addr = self.data[self.data[self.context_ptr] as usize] as usize;
@@ -47,11 +47,11 @@ impl TF {
         self.data[self.data[self.context_ptr] as usize] = str_addr as i64;
     }
 
-    /// immediate? ( nfa -- T | F ) Determines if a word is immediate or not
+    /// immediate? ( cfa -- T | F ) Determines if a word is immediate or not
     pub fn f_immediate_q(&mut self) {
         if stack_ok!(self, 1, "immediate?") {
-            let nfa = pop!(self) as usize;
-            let name_ptr = self.data[nfa] as usize;
+            let cfa = pop!(self) as usize;
+            let name_ptr = self.data[cfa - 1] as usize;
             let immed = name_ptr & IMMEDIATE_MASK;
             let result = if immed == 0 { FALSE } else { TRUE };
             push!(self, result);
@@ -105,7 +105,7 @@ impl TF {
             let xt = pop!(self);
             push!(self, xt + 1);
             match self.data[xt as usize] {
-                BUILTIN => self.i_builtin(),
+                BUILTIN => self.msg.error("f_execute", "BUILTIN found", Some(xt)), //self.i_builtin(),
                 VARIABLE => self.i_variable(),
                 CONSTANT => self.i_constant(),
                 LITERAL => self.i_literal(),
@@ -116,9 +116,12 @@ impl TF {
                 ABORT => self.i_abort(),
                 EXIT => self.i_exit(),
                 NEXT => self.i_next(),
-                _ => self
-                    .msg
-                    .error("execute", "Unknown inner interpreter", Some(xt)),
+                _ => {
+                    pop!(self);
+                    let cfa = self.data[xt as usize] as usize & !BUILTIN_MASK;
+                    push!(self, cfa as i64);
+                    self.i_builtin();
+                }
             }
         }
     }
@@ -151,17 +154,22 @@ impl TF {
         if stack_ok!(self, 1, "$compile") {
             self.f_find();
             if pop!(self) == TRUE {
+                let cfa = top!(self);
                 // we found a word
                 // if it's immediate, we need to execute it; otherwise continue compiling
-                let cfa = pop!(self);
                 self.f_immediate_q();
                 if pop!(self) == TRUE {
                     // call the interpreter for this word
                     push!(self, self.data[self.pad_ptr] as i64);
                     self.f_d_interpret();
                 } else {
-                    // compile it
-                    push!(self, cfa);
+                    // check if it's a builtin, and compile appropriately
+                    let indirect = self.data[cfa as usize] as usize;
+                    if indirect & BUILTIN_MASK != 0 {
+                        push!(self, indirect as i64);
+                    } else {
+                        push!(self, cfa);
+                    }
                     self.f_comma(); // uses the cfa on the stack
                 }
             } else {
@@ -187,9 +195,6 @@ impl TF {
             self.f_find(); // (s -- nfa, cfa, T | s F )
             if pop!(self) == TRUE {
                 // we have a definition
-                let cfa = pop!(self);
-                let _nfa = pop!(self);
-                push!(self, cfa);
                 self.f_execute();
             } else {
                 // try number?
@@ -206,7 +211,7 @@ impl TF {
         }
     }
 
-    /// FIND (s -- nfa, cfa, T | s F ) Search the dictionary for the token indexed through s.
+    /// FIND (s -- cfa T | s F ) Search the dictionary for the token indexed through s.
     /// If not found, return the string address so NUMBER? can look at it
     pub fn f_find(&mut self) {
         if stack_ok!(self, 1, "find") {
@@ -227,7 +232,6 @@ impl TF {
                 link = self.data[link] as usize;
             }
             if result {
-                push!(self, link as i64 + 1);
                 push!(self, link as i64 + 2);
                 push!(self, TRUE);
             } else {
@@ -295,10 +299,7 @@ impl TF {
             self.f_type(); // a warning message
             push!(self, FALSE);
         } else {
-            // we found it, so convert the cfa address to an execution token
-            let cfa = pop!(self);
-            pop!(self); // don't need the nfa
-            push!(self, cfa); // push the cfa
+            // we found it, so leave the cfa on the stack
         }
     }
 
@@ -521,10 +522,19 @@ impl TF {
                         break;
                     }
                     _ => {
-                        // it's a word
-                        let word = self.data[self.data[index] as usize - 1]; // nfa address
-                        let name = self.u_get_string(word as usize);
-                        print!("{name} ");
+                        // it's a colon definition or a builtin
+                        let mut cfa = self.data[index] as usize;
+                        let mut mask = cfa & BUILTIN_MASK;
+                        if mask == 0 {
+                            let word = self.data[self.data[cfa] as usize - 1]; // nfa address
+                            let name = self.u_get_string(word as usize);
+                            print!("{name} ");
+                        } else {
+                            mask = !BUILTIN_MASK;
+                            cfa &= mask;
+                            let name = &self.builtins[cfa].name;
+                            print!("{name} ");
+                        }
                     }
                 }
                 index += 1;

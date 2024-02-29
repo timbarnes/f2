@@ -4,7 +4,7 @@ use crate::engine::PAD_START;
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
-use crate::engine::{BUILTIN, FALSE, STR_START, TF, TIB_START, VARIABLE};
+use crate::engine::{BUILTIN_MASK, FALSE, STR_START, TF, TIB_START, VARIABLE};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -129,7 +129,8 @@ impl TF {
         self.builtins
             .push(BuiltInFn::new(name.to_owned(), code, doc.to_string()));
         // now build the DATA space record
-        self.u_make_word(name, &[BUILTIN, self.builtins.len() as i64 - 1]);
+        let cfa = (self.builtins.len() - 1) | BUILTIN_MASK;
+        self.u_make_word(name, &[cfa as i64]);
     }
 
     pub fn add_builtins(&mut self) {
@@ -185,18 +186,12 @@ impl TF {
             TF::i_next,
             "_next ( opcode -- ) end of word - continue to the next one",
         );
-        self.u_add_builtin(
-            "_marker",
-            TF::i_marker,
-            "_marker is a no-op and placeholder",
-        );
-        self.u_add_builtin(
-            "_marker",
-            TF::i_marker,
-            "_marker is a no-op and placeholder",
-        );
-
         // Start of normal functions
+        self.u_add_builtin(
+            "f_marker",
+            TF::f_marker,
+            "marker <name> ( -- ) Places a named marker in the dictionary, to be used by FORGET",
+        );
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");
@@ -372,6 +367,7 @@ impl TF {
             "immediate sets the immediate flag on the most recently defined word",
         );
         self.u_add_builtin("[", TF::f_lbracket, "[ ( -- ) Exit compile mode");
+        self.f_immediate();
         self.u_add_builtin("]", TF::f_rbracket, "] ( -- ) Enter compile mode");
         self.u_add_builtin(
             "quit",
@@ -462,6 +458,7 @@ impl TF {
             TF::f_l_paren,
             "( <text> ) Inline comment - text inside the parens is ignored",
         );
+        self.f_immediate();
         self.u_add_builtin(
             "variable",
             TF::f_variable,
@@ -499,10 +496,28 @@ impl TF {
         );
         self.f_immediate();
         self.u_add_builtin(
-            "immediate?",
+            "immed?",
             TF::f_immediate_q,
-            "immediate? ( nfa -- T | F ) Determines if a word is immediate",
+            "immed? ( cfa -- T | F ) Determines if a word is immediate",
         );
         self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
+        self.u_add_builtin(
+            "if",
+            TF::f_if,
+            "if ( b -- ) if b is true, continue; otherwise branch to else or then",
+        );
+        self.f_immediate();
+        self.u_add_builtin("else", TF::f_else, "else ( -- ) branch to then");
+        self.f_immediate();
+        self.u_add_builtin("then", TF::f_then, "then ( -- ) continue");
+        self.f_immediate();
+        self.u_add_builtin("for", TF::f_for, "for ( n -- ) continue");
+        self.f_immediate();
+        self.u_add_builtin(
+            "next",
+            TF::f_next,
+            "next ( -- ) decrement loop counter, and branch back if > 0",
+        );
+        self.f_immediate();
     }
 }

@@ -3,8 +3,8 @@
 /// Core functions to execute specific types of objects
 ///
 use crate::engine::{
-    ABORT, BRANCH, BRANCH0, BUILTIN, CONSTANT, DEFINITION, EXIT, LITERAL, NEXT, RET_START, STRLIT,
-    TF, VARIABLE,
+    ABORT, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, LITERAL, NEXT,
+    RET_START, STRLIT, TF, VARIABLE,
 };
 
 macro_rules! pop {
@@ -34,8 +34,7 @@ impl TF {
     ///
     pub fn i_builtin(&mut self) {
         let code = pop!(self);
-        let index = self.data[code as usize] as usize;
-        let op = &self.builtins[index];
+        let op = &self.builtins[code as usize];
         let func = op.code;
         func(self);
     }
@@ -99,10 +98,13 @@ impl TF {
             // println!("{code}");
             match code {
                 BUILTIN => {
-                    let index = self.data[pc + 1] as usize;
-                    let op = &self.builtins[index];
-                    let func = op.code;
-                    func(self);
+                    self.msg
+                        .error("i_definition", "Found BUILTIN???", Some(code));
+                    /*                     let index = self.data[pc + 1] as usize;
+                                      let op = &self.builtins[index];
+                                      let func = op.code;
+                                      func(self);
+                    */
                     // return
                     self.f_r_from();
                     pc = pop!(self) as usize;
@@ -145,7 +147,7 @@ impl TF {
                     } else {
                         pc += offset as usize;
                     }
-                    pc += 1; // skip over the offset
+                    // pc += 1; // skip over the offset
                 }
                 BRANCH0 => {
                     pc += 1;
@@ -172,9 +174,18 @@ impl TF {
                 NEXT => self.i_next(),
                 _ => {
                     // we have a word address
-                    push!(self, pc as i64 + 1); // the return address is the next object in the list
-                    self.f_to_r(); // save it on the return stack
-                    pc = code as usize;
+                    // see if it's a builtin:
+                    let mut builtin_flag = code as usize & BUILTIN_MASK;
+                    if builtin_flag != 0 {
+                        builtin_flag = code as usize & !BUILTIN_MASK;
+                        push!(self, builtin_flag as i64);
+                        self.i_builtin();
+                        pc += 1;
+                    } else {
+                        push!(self, pc as i64 + 1); // the return address is the next object in the list
+                        self.f_to_r(); // save it on the return stack
+                        pc = code as usize;
+                    }
                 }
             }
         }
@@ -195,6 +206,80 @@ impl TF {
     /// Continue to the next word
     pub fn i_next(&mut self) {}
 
-    /// i_marker separates inner interpreters from other builtins
-    pub fn i_marker(&mut self) {}
+    /// f_marker <name> ( -- ) sets a location for FORGET
+    ///     It creates a definition called <name> that has the effect of resetting HERE and CONTEXT       
+    pub fn f_marker(&mut self) {}
+
+    /// f_if ( b -- ) if the top of stack is TRUE, continue, otherwise branch to ELSE; IMMEDIATE
+    ///     Implemented by compiling BRANCH0 and an offset word, putting the offset word's address on the return stack.
+    pub fn f_if(&mut self) {
+        // need to know the current address where the definition is happening. ***
+        // We should be able to use HERE
+        push!(self, BRANCH0);
+        self.f_comma();
+        push!(self, self.data[self.here_ptr]);
+        self.f_to_r();
+        push!(self, 0); // placeholder
+        self.f_comma();
+    }
+
+    /// f_else ( -- ) branch to THEN; IMMEDIATE
+    ///     Compile time: Compiles BRANCH0 and an offset word, putting the offset word's address on the return stack.
+    ///     Resolves the address on the return stack and stores into IF's branch offset.
+    pub fn f_else(&mut self) {
+        let here = self.data[self.here_ptr];
+        self.f_r_from();
+        let there = pop!(self);
+        self.data[there as usize] = here - there + 2; // to skip the branch
+        push!(self, BRANCH);
+        self.f_comma();
+        push!(self, self.data[self.here_ptr]);
+        self.f_to_r();
+        push!(self, 0);
+        self.f_comma();
+    }
+
+    /// f_then ( -- ) no execution semantics; IMMEDIATE
+    ///     Compile time: Resolves the address on the stack, storing it into IF or ELSE's branch offset.
+    ///                   Compiles a BRANCH and pushes it's offset address on the return stack.
+    pub fn f_then(&mut self) {
+        let here = self.data[self.here_ptr];
+        self.f_r_from();
+        let there = pop!(self);
+        // println!("Here:{} There:{}", here, there);
+        self.data[there as usize] = here - there;
+    }
+
+    /// f_for ( -- ) no execution semantics; IMMEDIATE
+    ///     Compile time: Compiles a >R and puts the pc on the compute stack.
+    pub fn f_for(&mut self) {
+        push!(self, self.data[self.here_ptr]); // so NEXT can calculate the BRANCH0
+        push!(self, 2305843009213694009); // *** hardwired address of >R !!! Not good !!!
+        self.f_comma();
+    }
+
+    /// f_next ( -- ) decrement loop counter; if <= 0, continue; otherwise push loop counter and branch back; IMMEDIATE
+    ///     Compile time: Resolves the address on the stack, storing it into FOR's branch offset.
+    pub fn f_next(&mut self) {
+        push!(self, 2305843009213694010); // R>
+        self.f_comma();
+        push!(self, LITERAL);
+        self.f_comma();
+        push!(self, 1);
+        self.f_comma();
+        push!(self, 2305843009213693965); // -
+        self.f_comma();
+        push!(self, 2305843009213693987); // DUP
+        self.f_comma();
+        push!(self, 2305843009213693974); // 0=
+        self.f_comma();
+        push!(self, BRANCH0);
+        self.f_comma();
+        let here = self.data[self.here_ptr];
+        let there = pop!(self);
+        push!(self, there - here);
+        self.f_comma();
+        push!(self, 2305843009213693988);
+        self.f_comma();
+    }
 }

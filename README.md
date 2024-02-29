@@ -2,7 +2,7 @@
 
 This implementation attempts to create a reasonable minimum system in Rust, with as much as possible implemented in Forth.
 
-For convenience rather than efficiency, the data store is an array[i32], and it uses indirect threading.
+For convenience rather than efficiency, the data store is an array[i64], and it uses indirect threading.
 Builtin functions are made visible in the data space, which also contains:
 - The text input buffer `TIB`
 - The text working buffer `PAD`
