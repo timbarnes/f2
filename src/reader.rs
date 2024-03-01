@@ -16,29 +16,17 @@ enum Source {
 
 pub struct Reader {
     source: Source, // Stdin or a file
-    prompt: String, // the standard prompt
     msg: Msg,
 }
 
-impl fmt::Debug for Reader {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Tokenizer").field(&self.source).finish()
-    }
-}
-
 impl Reader {
-    pub fn new(
-        file_path: Option<&std::path::PathBuf>,
-        prompt: &str,
-        msg_handler: Msg,
-    ) -> Option<Reader> {
+    pub fn new(file_path: Option<&std::path::PathBuf>, msg_handler: Msg) -> Option<Reader> {
         // Initialize a tokenizer.
         let mut message_handler = Msg::new();
         message_handler.set_level(DebugLevel::Error);
         match file_path {
             None => Some(Reader {
                 source: Source::Stdin,
-                prompt: prompt.to_owned(),
                 msg: msg_handler,
             }),
             Some(filepath) => {
@@ -46,7 +34,6 @@ impl Reader {
                 match file {
                     Ok(file) => Some(Reader {
                         source: Source::Stream(BufReader::new(file)),
-                        prompt: prompt.to_owned(),
                         msg: msg_handler,
                     }),
                     Err(_) => {
@@ -70,7 +57,6 @@ impl Reader {
         let result;
         match self.source {
             Source::Stdin => {
-                //print!("{} ", self.prompt);
                 io::stdout().flush().unwrap();
                 result = io::stdin().read_line(&mut new_line);
             }

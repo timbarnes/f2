@@ -80,37 +80,37 @@ impl Config {
         // create and run the interpreter
         // return when finished
 
-        let mut forth = TF::new("Ok ");
+        let mut forth = TF::new();
         forth.cold_start();
 
         forth.msg.set_level(self.debug_level.clone());
 
-        if !self.no_core {
-            for path in DEFAULT_CORE {
-                if forth.load_file(&path.to_owned()) {
-                    self.loaded_core = true;
-                    forth
-                        .msg
-                        .info("MAIN", "Loaded core dictionary", Some(&self.core_file));
-                    break;
-                }
-            }
-            if !self.loaded_core {
-                forth.msg.error(
-                    "MAIN",
-                    "Unable to load core dictionary",
-                    Some(&self.core_file),
-                );
-            }
-        }
-        if self.loaded_file != "" {
-            if !forth.load_file(&self.loaded_file) {
-                forth
-                    .msg
-                    .error("MAIN", "Unable to load userfile", Some(&self.loaded_file));
-            }
-        }
-
+        /*         if !self.no_core {
+                   for path in DEFAULT_CORE {
+                       if forth.load_file(&path.to_owned()) {
+                           self.loaded_core = true;
+                           forth
+                               .msg
+                               .info("MAIN", "Loaded core dictionary", Some(&self.core_file));
+                           break;
+                       }
+                   }
+                   if !self.loaded_core {
+                       forth.msg.error(
+                           "MAIN",
+                           "Unable to load core dictionary",
+                           Some(&self.core_file),
+                       );
+                   }
+               }
+               if self.loaded_file != "" {
+                   if !forth.load_file(&self.loaded_file) {
+                       forth
+                           .msg
+                           .error("MAIN", "Unable to load userfile", Some(&self.loaded_file));
+                   }
+               }
+        */
         forth.set_abort_flag(false); // abort flag may have been set by load_file, but is no longer needed.
 
         println!("{WELCOME_MESSAGE} Version {VERSION}");

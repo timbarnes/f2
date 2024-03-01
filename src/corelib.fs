@@ -1,6 +1,6 @@
 ( Core word definitions )
 
-: negate ( n -- -n ) if -1 else 0 then ;
+: negate ( n -- -n ) if 0 else -1 then ;
 : nip ( a b -- b ) swap drop ;
 : tuck ( a b -- b a b ) swap over ;
 : pop ( a -- ) drop ;
@@ -18,15 +18,18 @@
 : debug show-stack step-on ;
 : bl 32 ; ( puts the character code for a space on the stack )
 : space ( -- ) bl emit ;
-: spaces ( n -- ) 1- for space emit next ;
+: spaces ( n -- ) 1- for space next ;
 : 1- ( n -- n-1 ) 1 - ;
 : 1+ ( n -- n+1 ) 1 + ;
-: endif then ; ( synonym for then, to allow if - else - endif conditionals )
 : ?stack depth 0= if ." Stack underflow" abort then ;
 
 
 : +! ( n addr -- ) dup @ rot + swap ! ;
 : ? ( addr -- ) @ . ;
+
+( File reader functions )
+: included tmp @ include-file ; \ include-file uses a string pointer on the stack to load a file
+: include 32 s-parse included ;
 
 s" src/regression.fs" 
 : run-regression clear include-file ;

@@ -330,7 +330,7 @@ impl TF {
         self.u_add_builtin(
             "key",
             TF::f_key,
-            "key ( -- c ) Get a character from the terminal",
+            "key ( -- c | 0 ) get a character and push on the stack, or zero if none available",
         );
         self.u_add_builtin("r/w", TF::f_r_w, "");
         self.u_add_builtin("r/o", TF::f_r_o, "");

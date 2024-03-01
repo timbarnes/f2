@@ -67,8 +67,8 @@ pub struct TF {
     pub tib_in_ptr: usize,
     exit_flag: bool, // set when the "bye" word is executed.
     pub msg: Msg,
-    pub reader: Reader,
-    pub show_stack: bool, // show the stack at the completion of a line of interaction
+    pub reader: Vec<Reader>, // allows for nested file processing
+    pub show_stack: bool,    // show the stack at the completion of a line of interaction
     pub step_mode: bool,
 }
 
@@ -82,9 +82,9 @@ pub enum FileMode {
 
 impl TF {
     // ForthInterpreter struct implementations
-    pub fn new(main_prompt: &str) -> TF {
-        if let Some(reader) = Reader::new(None, main_prompt, Msg::new()) {
-            TF {
+    pub fn new() -> TF {
+        if let Some(reader) = Reader::new(None, Msg::new()) {
+            let mut interpreter = TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
                 builtins: Vec::new(),
@@ -109,10 +109,12 @@ impl TF {
                 tib_in_ptr: 0,
                 exit_flag: false,
                 msg: Msg::new(),
-                reader: reader,
+                reader: Vec::new(),
                 show_stack: true,
                 step_mode: false,
-            }
+            };
+            interpreter.reader.push(reader);
+            interpreter
         } else {
             panic!("unable to create reader");
         }
@@ -185,60 +187,6 @@ impl TF {
     pub fn should_exit(&self) -> bool {
         // Method to determine if we should exit
         self.exit_flag
-    }
-
-    /// load_file: Internal file reader
-    /// Sets up a new reader, and drives ACCEPT?
-    ///
-    pub fn load_file(&mut self, path: &String) -> bool {
-        // read in a file of forth code using the provided path
-        // returns false in case of error
-        // does not modify self.text
-        let full_path = std::fs::canonicalize(path);
-        /*         match full_path {
-                   Ok(full_path) => {
-                       // path is good
-                       // make a new reader (it will be swapped with self.parser.reader)
-                       let reader = Reader::new(Some(&full_path), "", "", Msg::new());
-                       match reader {
-                           Some(mut previous_reader) => {
-                               std::mem::swap(&mut previous_reader, &mut self.parser.reader);
-                               loop {
-                                   if self.process_token() {
-                                       self.msg.debug("loaded", "processed", Some(&self.token_ptr));
-                                   } else {
-                                       self.msg
-                                           .debug("loaded", "No more tokens to read", None::<bool>);
-                                       break;
-                                   }
-                               }
-                               std::mem::swap(&mut self.parser.reader, &mut previous_reader);
-                               true
-                           }
-                           None => {
-                               self.set_abort_flag(true);
-                               self.msg
-                                   .error("loaded", "Failed to create new reader", None::<bool>);
-                               false
-                           }
-                       }
-                   }
-                   Err(error) => {
-                       self.msg
-                           .warning("loaded", error.to_string().as_str(), None::<bool>);
-                       self.set_abort_flag(true);
-                       false
-                   }
-               }
-        */
-        true
-    }
-
-    pub fn loaded(&mut self) {
-        // Load a file of forth code. Initial implementation is not intended to be recursive.
-        // attempt to open the file, return an error if not possible
-        let file_name = self.u_get_string(self.pad_ptr);
-        self.load_file(&file_name);
     }
 
     fn step(&mut self) {

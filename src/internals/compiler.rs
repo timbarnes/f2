@@ -508,24 +508,11 @@ impl TF {
                         loop {
                             let xt = self.data[index];
                             match xt {
-                                BUILTIN => {
-                                    let opcode =
-                                        self.data[self.data[index as usize + 1] as usize] as usize;
-                                    let name = &self.builtins[opcode].name;
-                                    print!("{name} ");
-                                    index += 1; // we consumed an extra cell
-                                }
-                                VARIABLE | CONSTANT => {
-                                    let name =
-                                        self.u_get_string(self.data[xt as usize - 1] as usize);
-                                    print!("{} ", name);
-                                }
                                 LITERAL => {
                                     print!("{} ", self.data[index as usize + 1]);
                                     index += 1;
                                 }
-                                STRLIT => {}                 // print string contents
-                                DEFINITION => print!("???"), // Can't have a definition inside a definition
+                                STRLIT => {} // print string contents
                                 BRANCH => {
                                     print!("branch:{} ", self.data[index as usize + 1]);
                                     index += 1;
@@ -544,16 +531,12 @@ impl TF {
                                     }
                                     break;
                                 }
-                                NEXT => {
-                                    println!(";");
-                                    break;
-                                }
                                 _ => {
-                                    // it's a colon definition or a builtin
+                                    // it's a definition or a builtin
                                     let mut cfa = self.data[index] as usize;
                                     let mut mask = cfa & BUILTIN_MASK;
                                     if mask == 0 {
-                                        let word = self.data[self.data[cfa] as usize - 1]; // nfa address
+                                        let word = self.data[self.data[index] as usize - 1]; // nfa address
                                         let name = self.u_get_string(word as usize);
                                         print!("{name} ");
                                     } else {
