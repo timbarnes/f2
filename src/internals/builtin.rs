@@ -420,12 +420,6 @@ impl TF {
             "accept ( b l1 -- b l2 ) Read up to l1 characters into the buffer at b.
         Return the pointer to the buffer and the actual number of characters read.",
         );
-        /*         self.u_add_builtin(
-                   "text",
-                   TF::f_text,
-                   "TEXT ( -- ) Get a space-delimited token from the TIB, place in PAD",
-               );
-        */
         self.u_add_builtin(
             "parse-to",
             TF::f_parse_to,
@@ -439,27 +433,13 @@ impl TF {
         self.u_add_builtin(
             "s\"",
             TF::f_s_quote,
-            "s\" Place the following string in the PAD",
+            "s\" Place the following string in the TMP string buffer",
         );
         self.u_add_builtin(
             "type",
             TF::f_type,
             "type: print a string using pointer on stack",
         );
-        /*         self.u_add_builtin(
-                   "\\",
-                   TF::f_backslash,
-                   "\\ ( -- ) Comment: ignore the remainder of the line",
-               );
-
-        self.f_immediate();
-        self.u_add_builtin(
-            "(",
-            TF::f_l_paren,
-            "( <text> ) Inline comment - text inside the parens is ignored",
-        );
-        self.f_immediate();
-        */
         self.u_add_builtin(
             "variable",
             TF::f_variable,

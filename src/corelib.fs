@@ -41,7 +41,10 @@
 
 : .tmp tmp @ type ;
 : .pad pad @ type ;
+: ." s" .tmp ;
 
+: 1- ( n -- n-1 ) 1 - ;
+: 1+ ( n -- n+1 ) 1 + ;
 : negate ( n -- -n ) if 0 else -1 then ;
 : nip ( a b -- b ) swap drop ;
 : tuck ( a b -- b a b ) swap over ;
@@ -52,24 +55,23 @@
 : <> ( n -- n ) = 0= ;
 : min ( m n -- m | n ) 2dup < if drop else nip then ;
 : max ( m n -- m | n ) 2dup > if drop else nip then ;
-: abs (n -- n | -n ) dup 0 < if -1 * then ;
+: abs ( n -- n | -n ) dup 0 < if -1 * then ;
 : dbg-debug 3 dbg ;
 : dbg-info 2 dbg ;
 : dbg-warning 1 dbg ;
 : dbg-quiet 0 dbg ;
+
 : debug show-stack step-on ;
 : space ( -- ) BL emit ;
 : spaces ( n -- ) 1- for space next ;
-: 1- ( n -- n-1 ) 1 - ;
-: 1+ ( n -- n+1 ) 1 + ;
-: ?stack depth 0= if ." Stack underflow" abort then ;
+\ : ?stack depth 0= if ." Stack underflow" abort then ;
 
 
 : +! ( n addr -- ) dup @ rot + swap ! ;
 : ? ( addr -- ) @ . ;
 
 s" src/regression.fs" 
-: run-regression clear include-file ;
+: run-regression clear tmp @ include-file ;
 
 
 ( Application functions )
@@ -89,4 +91,4 @@ s" src/regression.fs"
             drop 1 
         then ;
 
-." Library loaded."
+ ." Library loaded."

@@ -8,10 +8,10 @@
 
 variable test-num 0 test-num !
 
-( Test Functions: place desired result on the stack, 
-  then push args to the test word, then the word, then test-single.
-  If the desired result is equal to the top of the stack, the test passes.
-  Relies on a variable test-num that indicates the number of the test. )
+( Test Functions: place desired result on the stack, )
+( then push args to the test word, then the word, then test-single. )
+( If the desired result is equal to the top of the stack, the test passes. )
+( Relies on a variable test-num that indicates the number of the test. )
 
 variable test-num 0 test-num !
 : test-none ( .. -- ) depth 1 test-num +!

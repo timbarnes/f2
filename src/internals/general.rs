@@ -246,42 +246,4 @@ impl TF {
             push!(self, dest);
         }
     }
-
-    /* /// s-parse ( c -- ) Get a c-delimited string from TIB, and place in TMP
-       pub fn f_s_parse(&mut self) {
-           let delim = pop!(self);
-           // need to call (parse) to get the string directly from the TIB
-           push!(self, self.data[self.tib_ptr] + self.data[self.tib_in_ptr]);
-           push!(
-               self,
-               self.data[self.tib_size_ptr] - self.data[self.tib_in_ptr] + 1
-           );
-           push!(self, delim);
-           self.f_parse_p();
-           let delta = pop!(self);
-           let length = pop!(self);
-           let addr = pop!(self);
-           if length > 0 {
-               self.u_str_copy(
-                   (addr + delta) as usize,
-                   self.data[self.tmp_ptr] as usize,
-                   length as usize,
-                   false,
-               );
-           }
-           self.data[self.tib_in_ptr] += delta + length + 1;
-       }
-    */
-    /*     /// .s" (s -- ) Print a string using the string address on the stack
-    pub fn f_dot_s_quote(&mut self) {
-        if stack_ok!(self, 1, ".s") {
-            let addr = pop!(self) as usize;
-            let length = self.strings[addr] as usize + 1;
-            let mut i = 1;
-            while i <= length {
-                print!("{}", self.strings[addr + i]);
-                i += 1;
-            }
-        }
-    } */
 }

@@ -142,11 +142,13 @@ impl TF {
         println!("");
     }
 
-    /// s" ( -- ) get a string and place it in PAD
+    /// s" ( -- ) get a string and place it in TMP
     pub fn f_s_quote(&mut self) {
-        push!(self, self.data[self.pad_ptr]);
+        push!(self, self.data[self.tmp_ptr]);
         push!(self, '"' as i64);
         self.f_parse_to();
+        pop!(self);
+        pop!(self);
     }
 
     /// type (s -- ) - print a string, using the string address on the stack
