@@ -484,24 +484,6 @@ impl TF {
         );
         self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
         self.u_add_builtin(
-            "if",
-            TF::f_if,
-            "if ( b -- ) if b is true, continue; otherwise branch to else or then",
-        );
-        self.f_immediate();
-        self.u_add_builtin("else", TF::f_else, "else ( -- ) branch to then");
-        self.f_immediate();
-        self.u_add_builtin("then", TF::f_then, "then ( -- ) closes if expression");
-        self.f_immediate();
-        /*     self.u_add_builtin("for", TF::f_for, "for ( n -- ) initiates iterative loop");
-        self.f_immediate();
-        self.u_add_builtin(
-            "next",
-            TF::f_next,
-            "next ( -- ) decrement loop counter, and branch back if > 0",
-        );
-        self.f_immediate(); */
-        self.u_add_builtin(
             "s-create",
             TF::f_s_create,
             "s-create ( s1 -- s2 ) Copy a string to the head of free space and return its address",

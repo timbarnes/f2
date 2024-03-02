@@ -44,17 +44,17 @@
 : >nfa 1 - ;                                        \ converts an cfa to an nfa
 : >cfa 1 + ;                                        \ converts an nfa to a cfa
 
-\ if else then WIP
-\ : iff BRANCH0 , here @ >r 0 , ; immediate
-\ : eelse ['] r> , here @ - , BRANCH , here @ >r 0 , ; immediate
-\ : tthen r> 
+ : if BRANCH0 , here @  0 , ; immediate
+ : else BRANCH , here @ 0 , swap dup here @ swap - swap ! ; immediate
+ : then dup here @ swap - swap ! ; immediate
 
 : for here @ ['] >r , ; immediate
 : next ['] r> , LITERAL , 1 , ['] - , ['] dup , ['] 0= , BRANCH0 , here @ - , ['] drop , ; immediate
 
 : 1- ( n -- n-1 ) 1 - ;
 : 1+ ( n -- n+1 ) 1 + ;
-: negate ( n -- -n ) if 0 else -1 then ;
+: negate ( n -- -n ) 0 swap - ;
+: not 0= ;
 : nip ( a b -- b ) swap drop ;
 : tuck ( a b -- b a b ) swap over ;
 : pop ( a -- ) drop ;
