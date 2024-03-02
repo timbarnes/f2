@@ -115,7 +115,7 @@ impl TF {
     }
 
     pub fn f_bye(&mut self) {
-        self.set_exit_flag();
+        self.exit_flag = true;
     }
 
     pub fn f_dup(&mut self) {

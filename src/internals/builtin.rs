@@ -71,8 +71,9 @@ impl TF {
         self.data[self.tib_in_ptr] = TIB_START as i64 + 1;
         self.hld_ptr = self.u_make_variable("hld");
         self.last_ptr = self.u_make_variable("last"); // points to nfa of new definition
-        self.compile_ptr = self.u_make_variable("'eval");
+        self.state_ptr = self.u_make_variable("'eval");
         self.abort_ptr = self.u_make_variable("abort?");
+        self.state_ptr = self.u_make_variable("state");
         self.data[self.abort_ptr] = FALSE;
     }
 
@@ -407,7 +408,7 @@ impl TF {
         self.u_add_builtin(
             "'",
             TF::f_tick,
-            "' (tick): searches the dictionary for a (postfix) word",
+            "' <name> (tick) ( -- cfa ) searches the dictionary for a (postfix) word",
         );
         self.u_add_builtin(
             "query",

@@ -254,14 +254,14 @@ impl TF {
     ///     Compile time: Compiles a >R and puts the pc on the compute stack.
     pub fn f_for(&mut self) {
         push!(self, self.data[self.here_ptr]); // so NEXT can calculate the BRANCH0
-        push!(self, 2305843009213694009); // *** hardwired address of >R !!! Not good !!!
+        push!(self, 2305843009213694007); // *** hardwired address of >R !!! Not good !!!
         self.f_comma();
     }
 
     /// f_next ( -- ) decrement loop counter; if <= 0, continue; otherwise push loop counter and branch back; IMMEDIATE
     ///     Compile time: Resolves the address on the stack, storing it into FOR's branch offset.
     pub fn f_next(&mut self) {
-        push!(self, 2305843009213694010); // R>
+        push!(self, 2305843009213694008); // R>
         self.f_comma();
         push!(self, LITERAL);
         self.f_comma();
@@ -269,7 +269,7 @@ impl TF {
         self.f_comma();
         push!(self, 2305843009213693965); // -
         self.f_comma();
-        push!(self, 2305843009213693987); // DUP
+        push!(self, 2305843009213693985); // DUP
         self.f_comma();
         push!(self, 2305843009213693974); // 0=
         self.f_comma();
@@ -279,7 +279,7 @@ impl TF {
         let there = pop!(self);
         push!(self, there - here);
         self.f_comma();
-        push!(self, 2305843009213693988);
+        push!(self, 2305843009213693986);
         self.f_comma();
     }
 }

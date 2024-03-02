@@ -33,11 +33,8 @@
 ( inner interpreter op codes, used by control structures )
 
 \ Untested implementation of recursion support
-: recurse ( -- ) \ Put a return address on the stack, then branch back to the cfa of the word
-    LITERAL , here 5 + ,
-    ' >r @ ,
-    BRANCH ,
-    last @ here @ - 1 - , ; immediate
+: recurse ( -- ) \ Simply compiles the cfa of the word being defined
+    last @ , ; immediate
 
 : .tmp tmp @ type ;
 : .pad pad @ type ;

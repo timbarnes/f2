@@ -285,7 +285,7 @@ impl TF {
         }
     }
 
-    /// ' (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
+    /// ' (TICK) <name> ( -- cfa | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
@@ -303,7 +303,7 @@ impl TF {
             self.f_type(); // a warning message
             push!(self, FALSE);
         } else {
-            // we found it, so leave the cfa on the stack
+            self.f_get(); // convert it to a cfa
         }
     }
 
