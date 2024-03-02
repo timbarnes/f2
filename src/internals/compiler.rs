@@ -285,11 +285,11 @@ impl TF {
         }
     }
 
-    /// ' (TICK) <name> ( -- cfa | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
+    /// (') (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
-    pub fn f_tick(&mut self) {
+    pub fn f_tick_p(&mut self) {
         push!(self, self.data[self.pad_ptr]);
         push!(self, ' ' as i64);
         self.f_parse_to(); // ( -- b u )
@@ -302,8 +302,6 @@ impl TF {
             self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
             self.f_type(); // a warning message
             push!(self, FALSE);
-        } else {
-            self.f_get(); // convert it to a cfa
         }
     }
 
@@ -341,28 +339,6 @@ impl TF {
             }
         }
     }
-
-    /*    /// TEXT ( -- b u ) Get a space-delimited token from the TIB, place in PAD
-       pub fn f_text(&mut self) {
-           push!(self, ' ' as u8 as i64);
-           self.f_parse();
-       }
-    */
-    /*  /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
-    pub fn f_backslash(&mut self) {
-        push!(self, 1 as u8 as i64);
-        self.f_parse();
-        pop!(self); // throw away stack values left by f_parse
-        pop!(self);
-    } */
-
-    /// ( <text> ) Used for stack signature documentation. Ignores everything up to the right paren.
-    /*     pub fn f_l_paren(&mut self) {
-        push!(self, ')' as u8 as i64);
-        self.f_parse();
-        pop!(self); // throw away stack values left by f_parse, causing the text to be abandoned
-        pop!(self);
-    } */
 
     /// PARSE ( b d -- b u ) Get a d-delimited token from TIB, and return counted string in string buffer at b
     /// need to check if TIB is empty
@@ -475,9 +451,6 @@ impl TF {
         }
     }
 
-    /// string <name> ( s -- ) Creates and initializez a new string from the PAD
-    pub fn f_string(&mut self) {}
-
     /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
     pub fn f_smove(&mut self) {
         let dest = pop!(self) as usize;
@@ -492,7 +465,7 @@ impl TF {
 
     /// see <name> ( -- ) prints the definition of a word
     pub fn f_see(&mut self) {
-        self.f_tick(); // finds the address of the word
+        self.f_tick_p(); // finds the address of the word
         let cfa = pop!(self);
         if cfa == FALSE {
             self.msg.warning("see", "Word not found", None::<bool>);

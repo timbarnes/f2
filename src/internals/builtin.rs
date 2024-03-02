@@ -406,9 +406,9 @@ impl TF {
         Return it's address or FALSE if not found",
         );
         self.u_add_builtin(
-            "'",
-            TF::f_tick,
-            "' <name> (tick) ( -- cfa ) searches the dictionary for a (postfix) word",
+            "(')",
+            TF::f_tick_p,
+            "(') <name> ( -- a ) searches the dictionary for a (postfix) word, returning its address",
         );
         self.u_add_builtin(
             "query",
@@ -493,14 +493,14 @@ impl TF {
         self.f_immediate();
         self.u_add_builtin("then", TF::f_then, "then ( -- ) closes if expression");
         self.f_immediate();
-        self.u_add_builtin("for", TF::f_for, "for ( n -- ) initiates iterative loop");
+        /*     self.u_add_builtin("for", TF::f_for, "for ( n -- ) initiates iterative loop");
         self.f_immediate();
         self.u_add_builtin(
             "next",
             TF::f_next,
             "next ( -- ) decrement loop counter, and branch back if > 0",
         );
-        self.f_immediate();
+        self.f_immediate(); */
         self.u_add_builtin(
             "s-create",
             TF::f_s_create,

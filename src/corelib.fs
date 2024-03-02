@@ -34,11 +34,23 @@
 
 \ Untested implementation of recursion support
 : recurse ( -- ) \ Simply compiles the cfa of the word being defined
-    last @ , ; immediate
+    last @ 1 + , ; immediate \ last points to the latest nfa, so increment
 
 : .tmp tmp @ type ;
 : .pad pad @ type ;
 : ." s" .tmp ;
+: ' (') @ ;
+: ['] LITERAL , ' , ; immediate                     \ compiles a word's cfa into a definition as a literal
+: >nfa 1 - ;                                        \ converts an cfa to an nfa
+: >cfa 1 + ;                                        \ converts an nfa to a cfa
+
+\ if else then WIP
+\ : iff BRANCH0 , here @ >r 0 , ; immediate
+\ : eelse ['] r> , here @ - , BRANCH , here @ >r 0 , ; immediate
+\ : tthen r> 
+
+: for here @ ['] >r , ; immediate
+: next ['] r> , LITERAL , 1 , ['] - , ['] dup , ['] 0= , BRANCH0 , here @ - , ['] drop , ; immediate
 
 : 1- ( n -- n-1 ) 1 - ;
 : 1+ ( n -- n+1 ) 1 + ;
@@ -67,8 +79,8 @@
 : +! ( n addr -- ) dup @ rot + swap ! ;
 : ? ( addr -- ) @ . ;
 
-s" src/regression.fs" 
-: run-regression clear tmp @ include-file ;
+\ s" src/regression.fs" 
+\ : run-regression include ;
 
 
 ( Application functions )
