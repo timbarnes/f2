@@ -1,5 +1,5 @@
 /// Input-output words
-use crate::engine::{FileMode, BUF_SIZE, STACK_START, TF};
+use crate::engine::{FileMode, BUF_SIZE, FALSE, STACK_START, TF, TRUE};
 use crate::messages::Msg;
 use crate::reader::Reader;
 use std::cmp::min;
@@ -169,7 +169,7 @@ impl TF {
         self.file_mode = FileMode::ReadOnly;
     }
 
-    /// include-file (s -- ) Pushes a new reader, pointing to the file named at s, calling ABORT if unsuccessful
+    /// include-file (s -- T | F ) Pushes a new reader, pointing to the file named at s, calling ABORT if unsuccessful
     ///     The intent is that the standard loop will continue, now reading lines from the file
     ///     At the end of the file, the reader will be popped off the stack.
     ///     This allows for nested file reads.
@@ -185,18 +185,22 @@ impl TF {
                     match reader {
                         Some(reader) => {
                             self.reader.push(reader);
+                            push!(self, TRUE);
                         }
                         None => {
-                            self.msg
-                                .error("loaded", "Failed to create new reader", None::<bool>);
-                            self.f_abort();
+                            push!(self, FALSE);
+                            self.msg.error(
+                                "include-file",
+                                "Failed to create new reader",
+                                None::<bool>,
+                            );
                         }
                     }
                 }
                 Err(error) => {
+                    push!(self, FALSE);
                     self.msg
                         .warning("include-file", error.to_string().as_str(), None::<bool>);
-                    self.f_abort();
                 }
             }
         }
