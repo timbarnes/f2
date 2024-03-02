@@ -144,11 +144,12 @@ impl TF {
 
     /// s" ( -- ) get a string and place it in PAD
     pub fn f_s_quote(&mut self) {
+        push!(self, self.data[self.pad_ptr]);
         push!(self, '"' as i64);
-        self.f_parse();
+        self.f_parse_to();
     }
 
-    /// TYPE - print a string, using the string address on the stack
+    /// type (s -- ) - print a string, using the string address on the stack
     pub fn f_type(&mut self) {
         if stack_ok!(self, 1, "type") {
             let addr = pop!(self) as usize;

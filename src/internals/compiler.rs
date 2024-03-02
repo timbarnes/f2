@@ -129,7 +129,9 @@ impl TF {
     //             self.f_find(); // (s -- nfa, cfa, T | s F )
     pub fn f_eval(&mut self) {
         loop {
-            self.f_text(); //  ( -- b u ) get a token
+            push!(self, self.data[self.pad_ptr]);
+            push!(self, ' ' as i64);
+            self.f_parse_to(); //  ( -- b u ) get a token
             let len = pop!(self);
             if len == FALSE {
                 // u = 0 means EOL
@@ -191,6 +193,7 @@ impl TF {
     ///            If not a number, ABORT.
     pub fn f_d_interpret(&mut self) {
         if stack_ok!(self, 1, "$interpret") {
+            let token_addr = top!(self);
             self.f_find(); // (s -- nfa, cfa, T | s F )
             if pop!(self) == TRUE {
                 // we have a definition
@@ -202,7 +205,7 @@ impl TF {
                     // leave the converted number on the stack
                 } else {
                     pop!(self); // lose the failed number
-                    let word = &self.u_get_string(self.pad_ptr);
+                    let word = &self.u_get_string(token_addr as usize);
                     self.msg
                         .warning("$interpret", "token not recognized", Some(word));
                 }
@@ -287,7 +290,9 @@ impl TF {
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
     pub fn f_tick(&mut self) {
-        self.f_text(); // ( -- b u )
+        push!(self, self.data[self.pad_ptr]);
+        push!(self, ' ' as i64);
+        self.f_parse_to(); // ( -- b u )
         pop!(self); // don't need the delim
         self.f_find(); // look for the token
         if pop!(self) == FALSE {
@@ -337,46 +342,48 @@ impl TF {
         }
     }
 
-    /// TEXT ( -- b u ) Get a space-delimited token from the TIB, place in PAD
-    pub fn f_text(&mut self) {
-        push!(self, ' ' as u8 as i64);
-        self.f_parse();
-    }
-
-    /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
+    /*    /// TEXT ( -- b u ) Get a space-delimited token from the TIB, place in PAD
+       pub fn f_text(&mut self) {
+           push!(self, ' ' as u8 as i64);
+           self.f_parse();
+       }
+    */
+    /*  /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
     pub fn f_backslash(&mut self) {
         push!(self, 1 as u8 as i64);
         self.f_parse();
         pop!(self); // throw away stack values left by f_parse
         pop!(self);
-    }
+    } */
 
     /// ( <text> ) Used for stack signature documentation. Ignores everything up to the right paren.
-    pub fn f_l_paren(&mut self) {
+    /*     pub fn f_l_paren(&mut self) {
         push!(self, ')' as u8 as i64);
         self.f_parse();
         pop!(self); // throw away stack values left by f_parse, causing the text to be abandoned
         pop!(self);
-    }
+    } */
 
-    /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD
+    /// PARSE ( b d -- b u ) Get a d-delimited token from TIB, and return counted string in string buffer at b
     /// need to check if TIB is empty
     /// if delimiter = 1, get the rest of the TIB
     /// Update >IN as required, and set #TIB to zero if the line has been consumed
-    pub fn f_parse(&mut self) {
-        if stack_ok!(self, 1, "parse") {
+    pub fn f_parse_to(&mut self) {
+        if stack_ok!(self, 2, "parse") {
             let delim: i64 = pop!(self);
-            push!(
-                // starting address in the string
-                self,
-                self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
-            );
+            let dest = pop!(self);
             if delim == 1 {
                 self.data[self.tib_in_ptr] = 1;
                 self.data[self.tib_size_ptr] = 0;
+                push!(self, self.data[self.tib_in_ptr]);
                 push!(self, 0); // indicates nothing found, TIB is empty
                 return;
             } else {
+                push!(
+                    // starting address in the string
+                    self,
+                    self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
+                );
                 push!(
                     // bytes available (length of input string)
                     self,
@@ -392,13 +399,14 @@ impl TF {
                     // copy to pad
                     self.u_str_copy(
                         (addr + delta) as usize,
-                        self.data[self.pad_ptr] as usize,
+                        dest as usize,
                         length as usize,
                         false,
                     );
                 }
                 self.data[self.tib_in_ptr] += delta + length + 1;
-                push!(self, self.data[self.pad_ptr]);
+                //pop!(self);
+                push!(self, dest);
                 push!(self, length);
             }
         }
@@ -427,7 +435,9 @@ impl TF {
     /// f_create makes a new dictionary entry, using a postfix name
     /// References HERE, and assumes back pointer is in place already
     pub fn f_create(&mut self) {
-        self.f_text(); // get the word's name
+        push!(self, self.data[self.pad_ptr]);
+        push!(self, ' ' as i64);
+        self.f_parse_to(); // get the word's name
         pop!(self); // throw away the length, keep the text pointer
         self.f_q_unique(); // issue a warning if it's already defined
         let length = self.strings[self.data[self.pad_ptr] as usize] as u8 as i64;
@@ -487,7 +497,7 @@ impl TF {
         if cfa == FALSE {
             self.msg.warning("see", "Word not found", None::<bool>);
         } else {
-            let nfa = self.data[cfa as usize - 1] as usize;
+            let mut nfa = self.data[cfa as usize - 1] as usize;
             let is_immed = nfa & IMMEDIATE_MASK;
             let xt = self.data[cfa as usize] as usize;
             let is_builtin = xt & BUILTIN_MASK;
@@ -498,7 +508,7 @@ impl TF {
                 );
             } else {
                 // It's a definition of some kind
-                //xt &= ADDRESS_MASK; // get rid of any special bits
+                nfa &= ADDRESS_MASK; // get rid of any special bits
                 match xt as i64 {
                     DEFINITION => {
                         print!(": ");

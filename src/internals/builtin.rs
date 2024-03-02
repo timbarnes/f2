@@ -234,11 +234,11 @@ impl TF {
             TF::f_0less,
             "( j k -- j/k ) If j < 0 push true else false",
         );
-        self.u_add_builtin(
+        /*         self.u_add_builtin(
             ".s",
             TF::f_dot_s,
             ".s ( -- ) Print the contents of the calculation stack",
-        );
+        ); */
         self.u_add_builtin("cr", TF::f_cr, "cr ( -- ) Print a newline");
         self.u_add_builtin(
             "show-stack",
@@ -419,20 +419,20 @@ impl TF {
             "accept ( b l1 -- b l2 ) Read up to l1 characters into the buffer at b.
         Return the pointer to the buffer and the actual number of characters read.",
         );
+        /*         self.u_add_builtin(
+                   "text",
+                   TF::f_text,
+                   "TEXT ( -- ) Get a space-delimited token from the TIB, place in PAD",
+               );
+        */
         self.u_add_builtin(
-            "text",
-            TF::f_text,
-            "TEXT ( -- ) Get a space-delimited token from the TIB, place in PAD",
-        );
-        self.u_add_builtin(
-            "parse",
-            TF::f_text,
-            "PARSE ( c -- b u ) Get a c-delimited token from TIB, 
-        and return counted string in PAD",
+            "parse-to",
+            TF::f_parse_to,
+            "parse-to ( b c -- b u ) Get a c-delimited token from TIB, and return counted string in string buffer b",
         );
         self.u_add_builtin(
             "(parse)",
-            TF::f_text,
+            TF::f_parse_p,
             "(parse) - b u c -- b u delta ) return the location of a delimited token in string space",
         );
         self.u_add_builtin(
@@ -445,22 +445,20 @@ impl TF {
             TF::f_type,
             "type: print a string using pointer on stack",
         );
-        self.u_add_builtin(
-            "recurse",
-            TF::f_recurse,
-            "recurse ( -- ) implements recursion inside a word definition",
-        );
-        self.u_add_builtin(
-            "\\",
-            TF::f_backslash,
-            "\\ ( -- ) Comment: ignore the remainder of the line",
-        );
+        /*         self.u_add_builtin(
+                   "\\",
+                   TF::f_backslash,
+                   "\\ ( -- ) Comment: ignore the remainder of the line",
+               );
+
+        self.f_immediate();
         self.u_add_builtin(
             "(",
             TF::f_l_paren,
             "( <text> ) Inline comment - text inside the parens is ignored",
         );
         self.f_immediate();
+        */
         self.u_add_builtin(
             "variable",
             TF::f_variable,
@@ -531,11 +529,11 @@ impl TF {
             TF::f_dot_s_quote,
             ".s\" ( s -- ) Print a string from a string address",
         );
-        self.u_add_builtin(
+        /*         self.u_add_builtin(
             "s-parse",
             TF::f_s_parse,
             "s-parse ( c -- ) Read a delimited string into TMP",
-        );
+        ); */
         self.u_add_builtin(
             "s-copy",
             TF::f_s_copy,
