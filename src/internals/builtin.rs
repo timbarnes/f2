@@ -250,11 +250,12 @@ impl TF {
             TF::f_hide_stack,
             "hide-stack ( -- ) Turn off automatic stack display",
         );
-        self.u_add_builtin(
-            ".s\"",
-            TF::f_dot_s_quote,
-            ".s\" Print the contents of the pad",
-        );
+        /*         self.u_add_builtin(
+                   ".s\"",
+                   TF::f_dot_s_quote,
+                   ".s\" Print the contents of the pad",
+               );
+        */
         self.u_add_builtin(
             "emit",
             TF::f_emit,
@@ -524,11 +525,11 @@ impl TF {
             TF::f_s_create,
             "s-create ( s1 -- s2 ) Copy a string to the head of free space and return its address",
         );
-        self.u_add_builtin(
+        /*         self.u_add_builtin(
             ".s\"",
             TF::f_dot_s_quote,
             ".s\" ( s -- ) Print a string from a string address",
-        );
+        ); */
         /*         self.u_add_builtin(
             "s-parse",
             TF::f_s_parse,
