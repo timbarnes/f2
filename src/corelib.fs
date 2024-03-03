@@ -51,6 +51,11 @@
 : for here @ ['] >r , ; immediate
 : next ['] r> , LITERAL , 1 , ['] - , ['] dup , ['] 0= , BRANCH0 , here @ - , ['] drop , ; immediate
 
+: begin here @ ; immediate
+: until BRANCH0 , here @ - , ; immediate
+: while BRANCH0 , here @ 0 , ;  immediate
+: repeat BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
+
 : 1- ( n -- n-1 ) 1 - ;
 : 1+ ( n -- n+1 ) 1 + ;
 : negate ( n -- -n ) 0 swap - ;
@@ -65,14 +70,20 @@
 : min ( m n -- m | n ) 2dup < if drop else nip then ;
 : max ( m n -- m | n ) 2dup > if drop else nip then ;
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
+
+: space ( -- ) BL emit ;
+: spaces ( n -- ) 1- for space next ;
+
+\ Implementation of word
+: .word ( bp -- bp ) dup 1+ @ type space @ ;                \ prints a word name, given the preceding back pointer
+: words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
+
 : dbg-debug 3 dbg ;
 : dbg-info 2 dbg ;
 : dbg-warning 1 dbg ;
 : dbg-quiet 0 dbg ;
-
 : debug show-stack step-on ;
-: space ( -- ) BL emit ;
-: spaces ( n -- ) 1- for space next ;
+
 \ : ?stack depth 0= if ." Stack underflow" abort then ;
 
 

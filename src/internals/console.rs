@@ -1,5 +1,5 @@
 /// Input-output words
-use crate::engine::{FileMode, BUF_SIZE, FALSE, STACK_START, TF, TRUE};
+use crate::engine::{FileMode, ADDRESS_MASK, BUF_SIZE, FALSE, STACK_START, TF, TRUE};
 use crate::messages::Msg;
 use crate::reader::Reader;
 use std::cmp::min;
@@ -154,7 +154,7 @@ impl TF {
     /// type (s -- ) - print a string, using the string address on the stack
     pub fn f_type(&mut self) {
         if stack_ok!(self, 1, "type") {
-            let addr = pop!(self) as usize;
+            let addr = pop!(self) as usize & ADDRESS_MASK; // mask out any flags
             let text = self.u_get_string(addr);
             print!("{text}");
         }

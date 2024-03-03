@@ -251,12 +251,6 @@ impl TF {
             TF::f_hide_stack,
             "hide-stack ( -- ) Turn off automatic stack display",
         );
-        /*         self.u_add_builtin(
-                   ".s\"",
-                   TF::f_dot_s_quote,
-                   ".s\" Print the contents of the pad",
-               );
-        */
         self.u_add_builtin(
             "emit",
             TF::f_emit,
@@ -270,11 +264,6 @@ impl TF {
         self.u_add_builtin("clear", TF::f_clear, "clear: resets the stack to empty");
         self.u_add_builtin(":", TF::f_colon, ": starts a new definition");
         self.u_add_builtin("bye", TF::f_bye, "bye: exits to the operating system");
-        self.u_add_builtin(
-            "words",
-            TF::f_words,
-            "words: Lists all defined words to the terminal",
-        );
         self.u_add_builtin(
             "dup",
             TF::f_dup,
@@ -318,11 +307,6 @@ impl TF {
             "abort",
             TF::f_abort,
             "abort ( -- ) Ends execution of the current word and clears the stack",
-        );
-        self.u_add_builtin(
-            "see-all",
-            TF::f_see_all,
-            "see-all: Prints the definitions of known words",
         );
         self.u_add_builtin(
             "depth",
