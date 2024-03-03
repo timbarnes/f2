@@ -117,7 +117,7 @@ impl TF {
                 NEXT => self.i_next(),
                 _ => {
                     pop!(self);
-                    let cfa = self.data[xt as usize] as usize & !BUILTIN_MASK;
+                    let cfa = self.data[xt as usize] as usize & ADDRESS_MASK;
                     push!(self, cfa as i64);
                     self.i_builtin();
                 }
@@ -249,10 +249,9 @@ impl TF {
     /// leaves n and flag on the stack: true if number is ok.
     pub fn f_number_q(&mut self) {
         let buf_addr = pop!(self);
-        let mut result = 0;
         let numtext = self.u_get_string(buf_addr as usize);
         if u_is_integer(&numtext.as_str()) {
-            result = numtext.parse().unwrap();
+            let result = numtext.parse().unwrap();
             push!(self, result);
             push!(self, TRUE);
         } else {
@@ -340,7 +339,7 @@ impl TF {
         }
     }
 
-    /// PARSE ( b d -- b u ) Get a d-delimited token from TIB, and return counted string in string buffer at b
+    /// PARSE-TO ( b d -- b u ) Get a d-delimited token from TIB, and return counted string in string buffer at b
     /// need to check if TIB is empty
     /// if delimiter = 1, get the rest of the TIB
     /// Update >IN as required, and set #TIB to zero if the line has been consumed

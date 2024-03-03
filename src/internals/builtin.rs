@@ -467,16 +467,6 @@ impl TF {
             TF::f_s_create,
             "s-create ( s1 -- s2 ) Copy a string to the head of free space and return its address",
         );
-        /*         self.u_add_builtin(
-            ".s\"",
-            TF::f_dot_s_quote,
-            ".s\" ( s -- ) Print a string from a string address",
-        ); */
-        /*         self.u_add_builtin(
-            "s-parse",
-            TF::f_s_parse,
-            "s-parse ( c -- ) Read a delimited string into TMP",
-        ); */
         self.u_add_builtin(
             "s-copy",
             TF::f_s_copy,

@@ -29,7 +29,7 @@
 
 : text BL parse ;                                   \ Parser shortcut for space-delimited tokens
 : s-parse tmp @ swap parse-to ;                     \ Same as text, but loads to tmp instead of pad
-\ : s" ( delim -- s u ") tmp @ DQUOTE parse-to ;      \ Places a double-quoted string in tmp
+: s" ( delim -- s u ") tmp @ DQUOTE parse-to ;      \ Places a double-quoted string in tmp
 
 ( File reader functions )
 : included tmp @ include-file ; \ include-file uses a string pointer on the stack to load a file
@@ -41,10 +41,7 @@
 : recurse ( -- ) \ Simply compiles the cfa of the word being defined
     last @ 1 + , ; immediate \ last points to the latest nfa, so increment
 
-: .tmp tmp @ type ;
-: .pad pad @ type ;
-: ." s" .tmp ;
-: ' (') @ ;
+: ' (') @ ;                                            \ searches for a (postfix) word and returns its cfa or FALSE
 : ['] LITERAL , ' , ; immediate                        \ compiles a word's cfa into a definition as a literal
 : cfa>nfa 1 - ;                                        \ converts an cfa to an nfa
 : nfa>cfa 1 + ;                                        \ converts an nfa to a cfa
@@ -83,6 +80,10 @@
 : spaces ( n -- ) 1- for space next ;
 
 : type ( s -- ) ADDRESS_MASK and dup c@ dup rot + swap for dup i - 1+ c@ emit next drop BL emit ;
+
+: .tmp tmp @ type ;
+: .pad pad @ type ;
+: ." s" .tmp ;
 
 \ Implementation of word
 : .word ( bp -- bp ) dup 1+ @ type space @ ;             \ prints a word name, given the preceding back pointer
