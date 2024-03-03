@@ -2,7 +2,6 @@
 // Return one space-delimited token at a time.
 // Cache the remainder of the line.
 
-use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 

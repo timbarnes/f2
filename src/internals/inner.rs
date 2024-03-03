@@ -76,10 +76,9 @@ impl TF {
     ///    A program counter is used to step through the entries in the definition.
     ///    Each entry is one or two cells, and may be an inner interpreter code, with or without an argument,
     ///    or a defined word. For space efficiency, builtin words and user defined (colon) words are
-    ///    represented by the cfa of their definition. The interpreter calls the builtin code.
+    ///    represented by the cfa of their definition, overlaid with a flag. The interpreter calls the builtin code.
     ///    For nested definitions, the inner interpreter pushes the program counter (PC) and continues.
     ///    When the end of a definition is found, the PC is restored from the previous caller.
-    ///    Not sure how we know we're done and ready to return to the command line. ***
     ///
     ///    Most data is represented by an address, so self.data[pc] is the cfa of the word referenced.
     ///    Each operation advances the pc to the next token.
@@ -100,12 +99,6 @@ impl TF {
                 BUILTIN => {
                     self.msg
                         .error("i_definition", "Found BUILTIN???", Some(code));
-                    /*                     let index = self.data[pc + 1] as usize;
-                                      let op = &self.builtins[index];
-                                      let func = op.code;
-                                      func(self);
-                    */
-                    // return
                     self.f_r_from();
                     pc = pop!(self) as usize;
                 }
@@ -200,8 +193,11 @@ impl TF {
     /// Force an abort
     pub fn i_abort(&mut self) {}
 
-    /// Leave the current word
-    pub fn i_exit(&mut self) {}
+    /// Leave the current word *** doesn't work, because there's no way to reset the program counter from here
+    pub fn i_exit(&mut self) {
+        self.f_r_from();
+        // pc = pop!(self) as usize;
+    }
 
     /// Continue to the next word
     pub fn i_next(&mut self) {}

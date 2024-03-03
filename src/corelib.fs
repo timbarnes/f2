@@ -53,6 +53,7 @@
 
 : begin here @ ; immediate
 : until BRANCH0 , here @ - , ; immediate
+: again BRANCH , here @ - , ; immediate
 : while BRANCH0 , here @ 0 , ;  immediate
 : repeat BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
 
@@ -75,7 +76,7 @@
 : spaces ( n -- ) 1- for space next ;
 
 \ Implementation of word
-: .word ( bp -- bp ) dup 1+ @ type space @ ;                \ prints a word name, given the preceding back pointer
+: .word ( bp -- bp ) dup 1+ @ type space @ ;             \ prints a word name, given the preceding back pointer
 : words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
 
 : dbg-debug 3 dbg ;

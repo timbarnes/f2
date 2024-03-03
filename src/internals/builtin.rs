@@ -141,53 +141,53 @@ impl TF {
         self.u_add_builtin(
             "_builtin",
             TF::i_builtin,
-            "_builtin ( opcode -- ) executes the builtin on the stack",
+            "_builtin  opcode -- executes the builtin on the stack",
         );
         self.u_add_builtin(
             "_variable",
             TF::i_variable,
-            "variable ( opcode -- ) loads a variable's address on the stack",
+            "variable  opcode -- loads a variable's address on the stack",
         );
         self.u_add_builtin(
             "_constant",
             TF::i_constant,
-            "_constant ( opcode -- ) loads a constant's value on the stack",
+            "_constant  opcode -- loads a constant's value on the stack",
         );
         self.u_add_builtin(
             "_literal",
             TF::i_literal,
-            "_literal ( opcode -- ) loads a number on the stack",
+            "_literal  opcode -- loads a number on the stack",
         );
         self.u_add_builtin(
             "_stringlit",
             TF::i_strlit,
-            "_stringlit ( opcode -- ) loads a string pointer on the stack",
+            "_stringlit  opcode -- loads a string pointer on the stack",
         );
         self.u_add_builtin(
             "_definition",
             TF::i_builtin,
-            "_definition ( opcode -- ) executes a colon definition",
+            "_definition  opcode -- executes a colon definition",
         );
         self.u_add_builtin(
             "_branch",
             TF::i_branch,
-            "_branch ( opcode -- ) executes an unconditional branch",
+            "_branch  opcode -- executes an unconditional branch",
         );
         self.u_add_builtin(
             "_branch0",
             TF::i_branch0,
-            "_branch0 ( opcode --  executes a branch if zero",
+            "_branch0 opcode -- executes a branch if zero",
         );
         self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
         self.u_add_builtin(
-            "_exit",
+            "exit",
             TF::i_exit,
-            "_exit ( opcode -- ) returns from the current definition",
+            "exit ( -- ) returns from the current definition",
         );
         self.u_add_builtin(
             "_next",
             TF::i_next,
-            "_next ( opcode -- ) end of word - continue to the next one",
+            "_next opcode -- end of word - continue to the next one",
         );
         // Start of normal functions
         self.u_add_builtin(
