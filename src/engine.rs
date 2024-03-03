@@ -1,10 +1,8 @@
 //The tForth interpreter struct and implementation
 
 use crate::internals::builtin::BuiltInFn;
-// use crate::internals::compiler::*;
 use crate::messages::Msg;
 use crate::reader::Reader;
-//use crate::tokenizer::{ForthToken, Tokenizer};
 
 // DATA AREA constants
 pub const DATA_SIZE: usize = 10000;
@@ -122,7 +120,6 @@ impl TF {
 
     pub fn cold_start(&mut self) {
         self.u_insert_variables();
-        //self.f_insert_builtins();
         self.add_builtins();
         self.set_var(self.state_ptr, FALSE);
         self.u_insert_code(); // allows forth code to be run prior to presenting a prompt.

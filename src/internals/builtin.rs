@@ -487,5 +487,15 @@ impl TF {
             TF::f_s_copy,
             "s-copy ( source dest -- ) Copy a counted string from source to dest",
         );
+        self.u_add_builtin(
+            "c@",
+            TF::f_c_get,
+            "c@ ( s -- c ) Copy a character from string address s to the stack",
+        );
+        self.u_add_builtin(
+            "c!",
+            TF::f_c_store,
+            "c! ( c s -- ) Copy character c to string address s",
+        );
     }
 }

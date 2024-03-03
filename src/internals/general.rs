@@ -218,6 +218,22 @@ impl TF {
         push!(self, self.data[self.return_ptr + 1]);
     }
 
+    /// c@ - ( s -- c ) read a character from a string and place on the stack
+    pub fn f_c_get(&mut self) {
+        if stack_ok!(self, 1, "c@") {
+            let s_address = pop!(self) as usize;
+            push!(self, self.strings[s_address] as u8 as i64);
+        }
+    }
+
+    /// c! - ( c s -- ) read a character from a string and place on the stack
+    pub fn f_c_store(&mut self) {
+        if stack_ok!(self, 2, "c!") {
+            let s_address = pop!(self) as usize;
+            self.strings[s_address] = pop!(self) as u8 as char;
+        }
+    }
+
     /// s-copy (s-from s-to -- s-to )
     pub fn f_s_copy(&mut self) {
         if stack_ok!(self, 3, "s-copy") {
