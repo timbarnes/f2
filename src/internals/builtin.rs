@@ -421,11 +421,6 @@ impl TF {
             "s\" Place the following string in the TMP string buffer",
         );
         self.u_add_builtin(
-            "type",
-            TF::f_type,
-            "type: print a string using pointer on stack",
-        );
-        self.u_add_builtin(
             "variable",
             TF::f_variable,
             "variable <name> creates a new variable in the dictionary",

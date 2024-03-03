@@ -2,6 +2,8 @@
 : \ 1 parse drop drop ; immediate                   \ Implements comments to end of line 
 : ( 41 parse drop drop ; immediate                  \ Implements in-line comments
 
+1 dbg \ set debuglevel to warnings and errors
+
 \ Constants referring to inner interpreter opcodes, which are typically compiled into definitions
 1000 constant BUILTIN
 1001 constant VARIABLE
@@ -14,6 +16,11 @@
 1008 constant ABORT
 1009 constant EXIT
 
+72057594037927935 constant ADDRESS_MASK                      \ wipes any flags
+
+0 constant FALSE
+-1 constant TRUE
+
 \ ASCII symbols that are useful for text processing
 32 constant BL
 34 constant DQUOTE
@@ -22,9 +29,7 @@
 
 : text BL parse ;                                   \ Parser shortcut for space-delimited tokens
 : s-parse tmp @ swap parse-to ;                     \ Same as text, but loads to tmp instead of pad
-: s" ( delim -- s u ") tmp @ DQUOTE parse-to ;      \ Places a double-quoted string in tmp
-
-1 dbg \ set debuglevel to warnings and errors
+\ : s" ( delim -- s u ") tmp @ DQUOTE parse-to ;      \ Places a double-quoted string in tmp
 
 ( File reader functions )
 : included tmp @ include-file ; \ include-file uses a string pointer on the stack to load a file
@@ -40,9 +45,11 @@
 : .pad pad @ type ;
 : ." s" .tmp ;
 : ' (') @ ;
-: ['] LITERAL , ' , ; immediate                     \ compiles a word's cfa into a definition as a literal
-: >nfa 1 - ;                                        \ converts an cfa to an nfa
-: >cfa 1 + ;                                        \ converts an nfa to a cfa
+: ['] LITERAL , ' , ; immediate                        \ compiles a word's cfa into a definition as a literal
+: cfa>nfa 1 - ;                                        \ converts an cfa to an nfa
+: nfa>cfa 1 + ;                                        \ converts an nfa to a cfa
+: bp>nfa 1 + ;                                         \ from preceding back pointer to nfa
+: bp>cfa 2 + ;                                         \ from preceding back pointer to cfa
 
  : if BRANCH0 , here @  0 , ; immediate
  : else BRANCH , here @ 0 , swap dup here @ swap - swap ! ; immediate
@@ -75,6 +82,8 @@
 : space ( -- ) BL emit ;
 : spaces ( n -- ) 1- for space next ;
 
+: type ( s -- ) ADDRESS_MASK and dup c@ dup rot + swap for dup i - 1+ c@ emit next drop BL emit ;
+
 \ Implementation of word
 : .word ( bp -- bp ) dup 1+ @ type space @ ;             \ prints a word name, given the preceding back pointer
 : words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
@@ -91,6 +100,11 @@
 : +! ( n addr -- ) dup @ rot + swap ! ;
 : ? ( addr -- ) @ . ;
 
+: kkey ( -- c ) >in @ c@ 1 >in +! ;                     \ Get the next character from the TIB
+: ?key ( -- c T | F )                                   \ If there's a character in TIB, push it and TRUE
+    #tib @ >in @ < if FALSE else key TRUE then ;        \ otherwise push FALSE
+: strlen ( s -- n ) c@ ;                                \ return the count byte from the string
+                                                
 \ s" src/regression.fs" 
 \ : run-regression include ;
 
@@ -112,4 +126,4 @@
             drop 1 
         then ;
 
- ." Library loaded."
+ cr cr ." Library loaded." cr

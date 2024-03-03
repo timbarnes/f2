@@ -151,15 +151,6 @@ impl TF {
         pop!(self);
     }
 
-    /// type (s -- ) - print a string, using the string address on the stack
-    pub fn f_type(&mut self) {
-        if stack_ok!(self, 1, "type") {
-            let addr = pop!(self) as usize & ADDRESS_MASK; // mask out any flags
-            let text = self.u_get_string(addr);
-            print!("{text}");
-        }
-    }
-
     // file i/o
 
     pub fn f_r_w(&mut self) {
