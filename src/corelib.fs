@@ -116,6 +116,8 @@
 : .word ( bp -- bp ) dup dup '[' emit . 1+ @ type ']' emit space @ ;             \ prints a word name, given the preceding back pointer
 : words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
 
+: step-on TRUE stepper ! ;
+: step-off FALSE stepper ! ;
 : dbg-debug 3 dbg ;
 : dbg-info 2 dbg ;
 : dbg-warning 1 dbg ;

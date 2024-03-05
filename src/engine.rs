@@ -68,7 +68,7 @@ pub struct TF {
     pub msg: Msg,
     pub reader: Vec<Reader>, // allows for nested file processing
     pub show_stack: bool,    // show the stack at the completion of a line of interaction
-    pub step_mode: bool,
+    pub stepper_ptr: usize,
     pub timer: Instant, // for timing things
 }
 
@@ -111,7 +111,7 @@ impl TF {
                 msg: Msg::new(),
                 reader: Vec::new(),
                 show_stack: true,
-                step_mode: false,
+                stepper_ptr: 0,
                 timer: Instant::now(),
             };
             interpreter.reader.push(reader);
@@ -171,43 +171,6 @@ impl TF {
     pub fn should_exit(&self) -> bool {
         // Method to determine if we should exit
         self.exit_flag
-    }
-
-    fn step(&mut self) {
-        // controls step / debug functions
-        if self.step_mode {
-            /*             match &self.token_ptr.1 {
-                          ForthToken::Integer(num) => print!("{num}: Step> "),
-                          ForthToken::Float(num) => print!("f{num}: Step> "),
-                          ForthToken::Operator(op) => print!("{op}: Step> "),
-                          ForthToken::Jump(name, offset) => {
-                              print!("{name}:{}: Step> ", offset);
-                          }
-                          ForthToken::Forward(info) => {
-                              print!("{}{}: Step> ", info.word, info.tail);
-                          }
-                          ForthToken::Builtin(name, code) => print!("{}:{:?}", name, code),
-                          ForthToken::Definition(name, _def) => print!("{name} "),
-                          ForthToken::Empty => print!("ForthToken::Empty: Step> "),
-                          ForthToken::Variable(n, v) => print!("{}={}", n, v),
-                          _ => print!("variable or constant???"),
-                      }
-                      io::stdout().flush().unwrap();
-                      match self.parser.reader.read_char() {
-                          Some('s') => {
-                              self.print_stack();
-                              self.print_return_stack();
-                          }
-                          // Some('v') => self.print_variables(),
-                          Some('a') => {
-                              self.print_stack();
-                              //self.print_variables();
-                          }
-                          Some('c') => self.step_mode = false,
-                          Some(_) | None => {}
-                      }
-            */
-        }
     }
 
     /* pub fn pack_string(&self, input: &str) -> Vec<usize> {

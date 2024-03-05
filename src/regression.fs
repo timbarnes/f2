@@ -36,7 +36,7 @@ variable test-num 0 test-num !
     next ;
 
 
-."         Clear has to be the first test"
+."         Clear has to be the first test" cr
 1 2 3 4 5 clear test-none
 
 ."         Debugger"
@@ -49,28 +49,28 @@ variable test-num 0 test-num !
 1 1 dbg-warning test-single
 \ 1 1 debuglevel? test-single 
 
-."         Printing"
+."         Printing" cr
 1 1 23 . test-single
 1 1 44 . flush test-single
 \ 1 1 .s test-single
 1 1 45 emit test-single
 
-."                Loop tests"
+."                Loop tests" cr
 7 21 7 loop-test + + + + +  test-dual
 4 2 4 nested-loop-test - - test-dual
 3 3 3 loop-test + test-dual
 
-."         Arithmetic"
+."         Arithmetic" cr
 5 1 4 + test-single
 -10 5 15 - test-single
 -20 2 -10 * test-single
 4 12 3 / test-single
 
-."         Logic"
+."         Logic" cr
 -1 TRUE test-single
 0 FALSE test-single
 
-."         Comparisons"
+."         Comparisons" cr
 FALSE 1 3 > test-single ." >"
 TRUE 3 1 > test-single
 FALSE 5 2 < test-single
@@ -81,7 +81,7 @@ TRUE -22 0< test-single
 FALSE 0 0< test-single
 FALSE 55 0< test-single
 
-."         Bitwise"
+."         Bitwise" cr
 3 1 2 or test-single ." or"
 2 0 2 or test-single
 0 0 0 or test-single
@@ -90,7 +90,7 @@ FALSE 55 0< test-single
 0 0 3 and test-single
 45 -1 45 and test-single
 
-."        Stack operations"
+."        Stack operations" cr
  1 1 100 drop test-single
 5 5 6 drop test-single
 5 6 5 nip test-single
@@ -100,15 +100,15 @@ FALSE 55 0< test-single
 5 12 5 12 over drop test-dual
 9 4 6 9 4 rot drop test-dual
 
-."        Variables"
+."        Variables" cr
 5 variable x 5 x ! x @ test-single
 42 variable y 40 y ! 2 y +! y @ test-single
 42 variable z 42 z ! z ? z @ test-single
 
-."        Constants"
+."        Constants" cr
 12 12 constant months months test-single \ a constant with the value 12
 
-."        Application tests"
+."        Application tests" cr
 1 0 fac test-single
 1 1 fac test-single
 6 3 fac test-single

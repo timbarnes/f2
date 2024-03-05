@@ -74,6 +74,7 @@ impl TF {
         self.state_ptr = self.u_make_variable("'eval");
         self.abort_ptr = self.u_make_variable("abort?");
         self.state_ptr = self.u_make_variable("state");
+        self.stepper_ptr = self.u_make_variable("stepper"); // turns the stepper on or off
         self.data[self.abort_ptr] = FALSE;
     }
 
@@ -332,8 +333,6 @@ impl TF {
             TF::f_debuglevel,
             "debuglevel ( -- ) Displays the current debug level",
         );
-        self.u_add_builtin("step-on", TF::f_step_on, "");
-        self.u_add_builtin("step-off", TF::f_step_off, "");
         self.u_add_builtin(
             ">r",
             TF::f_to_r,

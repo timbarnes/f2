@@ -3,8 +3,8 @@
 /// Core functions to execute specific types of objects
 ///
 use crate::engine::{
-    ABORT, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, LITERAL, NEXT,
-    RET_START, STRLIT, TF, VARIABLE,
+    ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT,
+    LITERAL, NEXT, RET_START, STRLIT, TF, VARIABLE,
 };
 
 macro_rules! pop {
@@ -166,13 +166,15 @@ impl TF {
                 _ => {
                     // we have a word address
                     // see if it's a builtin:
-                    let mut builtin_flag = code as usize & BUILTIN_MASK;
+                    let builtin_flag = code as usize & BUILTIN_MASK;
+                    let address = code as usize & ADDRESS_MASK;
                     if builtin_flag != 0 {
-                        builtin_flag = code as usize & !BUILTIN_MASK;
-                        push!(self, builtin_flag as i64);
+                        self.u_step(address, true);
+                        push!(self, address as i64);
                         self.i_builtin();
                         pc += 1;
                     } else {
+                        self.u_step(address, false);
                         push!(self, pc as i64 + 1); // the return address is the next object in the list
                         self.f_to_r(); // save it on the return stack
                         pc = code as usize;

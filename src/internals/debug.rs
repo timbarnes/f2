@@ -1,6 +1,6 @@
 // Debugging help
 
-use crate::engine::{STACK_START, TF};
+use crate::engine::{FALSE, STACK_START, TF, TRUE};
 use crate::messages::DebugLevel;
 
 macro_rules! stack_ok {
@@ -60,11 +60,30 @@ impl TF {
         println!("DebugLevel is {:?}", self.msg.get_level());
     }
 
-    pub fn f_step_on(&mut self) {
-        self.step_mode = true;
-    }
-
-    pub fn f_step_off(&mut self) {
-        self.step_mode = false;
+    pub fn u_step(&mut self, address: usize, is_builtin: bool) {
+        let mut c;
+        if self.data[self.stepper_ptr] == TRUE {
+            print!("Step> ");
+            self.f_flush();
+            loop {
+                self.f_key();
+                c = pop!(self) as u8 as char;
+                if c != '\n' {
+                    break;
+                }
+            }
+            match c {
+                's' => {
+                    self.f_dot_s();
+                    if is_builtin {
+                        println!(" {} ", &self.builtins[address].name);
+                    } else {
+                        println!(" {} ", self.u_get_string(self.data[address - 1] as usize));
+                    }
+                }
+                'c' => self.data[self.stepper_ptr] = FALSE,
+                _ => println!("Stepper: 's' for show, 'c' for continue."),
+            }
+        }
     }
 }

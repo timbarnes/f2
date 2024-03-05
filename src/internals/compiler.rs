@@ -447,7 +447,7 @@ impl TF {
         let length = pop!(self) as usize;
         let source = pop!(self) as usize;
         // assuming both are counted, we begin with the count byte. Length should match the source count byte
-        for i in (0..=length) {
+        for i in 0..=length {
             self.strings[dest + i] = self.strings[source + i];
         }
         push!(self, dest as i64);
@@ -553,16 +553,6 @@ impl TF {
         }
     }
     */
-
-    /// u_write_word compiles a token into the current definition at HERE
-    ///              updating HERE afterwards
-    ///              the address of the (defined) word is on the stack
-    ///              we compile a pointer to the word's inner interpreter
-    pub fn u_write_word(&mut self, word_addr: i64) {
-        if stack_ok!(self, 1, "u-interpret") {
-            self.data[self.here_ptr] = word_addr;
-        }
-    }
 
     /// Return a string from a Forth string address
     pub fn u_get_string(&mut self, addr: usize) -> String {
