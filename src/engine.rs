@@ -3,6 +3,7 @@
 use crate::internals::builtin::BuiltInFn;
 use crate::messages::Msg;
 use crate::reader::Reader;
+use std::time::Instant;
 
 // DATA AREA constants
 pub const DATA_SIZE: usize = 10000;
@@ -68,6 +69,7 @@ pub struct TF {
     pub reader: Vec<Reader>, // allows for nested file processing
     pub show_stack: bool,    // show the stack at the completion of a line of interaction
     pub step_mode: bool,
+    pub timer: Instant, // for timing things
 }
 
 #[derive(Debug)]
@@ -110,6 +112,7 @@ impl TF {
                 reader: Vec::new(),
                 show_stack: true,
                 step_mode: false,
+                timer: Instant::now(),
             };
             interpreter.reader.push(reader);
             interpreter

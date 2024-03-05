@@ -480,5 +480,16 @@ impl TF {
             TF::f_c_store,
             "c! ( c s -- ) Copy character c to string address s",
         );
+        self.u_add_builtin("now", TF::f_now, "c! ( -- ) Start a timers");
+        self.u_add_builtin(
+            "micros",
+            TF::f_micros,
+            "elapsed ( -- n ) Microseconds since NOW was called",
+        );
+        self.u_add_builtin(
+            "millis",
+            TF::f_millis,
+            "millis ( -- n ) Milliseconds since NOW was called",
+        );
     }
 }

@@ -1,6 +1,7 @@
 // General-purpose builtin words
 
 use crate::engine::{FALSE, STACK_START, TF, TRUE};
+use std::time::Instant;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -260,5 +261,22 @@ impl TF {
             self.f_s_copy();
             self.data[self.string_ptr] += length as i64 + 1;
         }
+    }
+
+    /// f_now ( -- ) Start a timer
+    pub fn f_now(&mut self) {
+        self.timer = Instant::now();
+    }
+
+    /// micros ( -- n ) returns the number of microseconds since NOW was called
+    pub fn f_micros(&mut self) {
+        let duration = self.timer.elapsed();
+        push!(self, duration.as_micros() as i64);
+    }
+
+    /// millis ( -- n ) returns the number of milliseconds since NOW was called
+    pub fn f_millis(&mut self) {
+        let duration = self.timer.elapsed();
+        push!(self, duration.as_millis() as i64);
     }
 }
