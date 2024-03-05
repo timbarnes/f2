@@ -236,7 +236,7 @@ impl TF {
 
     /// s-copy (s-from s-to -- s-to )
     pub fn f_s_copy(&mut self) {
-        if stack_ok!(self, 3, "s-copy") {
+        if stack_ok!(self, 2, "s-copy") {
             let dest = pop!(self) as usize;
             let result_ptr = dest as i64;
             let source = pop!(self) as usize;
@@ -259,7 +259,6 @@ impl TF {
             push!(self, dest); // destination
             self.f_s_copy();
             self.data[self.string_ptr] += length as i64 + 1;
-            push!(self, dest);
         }
     }
 }

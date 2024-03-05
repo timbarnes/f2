@@ -58,16 +58,6 @@ impl TF {
         }
     }
 
-    /// [  Install $INTERPRET in 'EVAL
-    pub fn f_lbracket(&mut self) {
-        self.set_compile_mode(false);
-    }
-
-    /// ]  Install $COMPILE in 'EVAL   
-    pub fn f_rbracket(&mut self) {
-        self.set_compile_mode(true);
-    }
-
     pub fn f_abort(&mut self) {
         // empty the stack, reset any pending operations, and return to the prompt
         self.msg
@@ -319,7 +309,7 @@ impl TF {
                 let start = in_p as usize;
                 let end = start + buf_len as usize;
                 let mut i = start as usize;
-                let mut j = i;
+                let mut j;
                 while self.strings[i] == delim && i < end {
                     i += 1;
                 }
@@ -494,7 +484,11 @@ impl TF {
                                     print!("{} ", self.data[index as usize + 1]);
                                     index += 1;
                                 }
-                                STRLIT => {} // print string contents
+                                STRLIT => {
+                                    let s_addr = self.data[index as usize + 1] as usize;
+                                    print!("\" {}\" ", self.u_get_string(s_addr));
+                                    index += 1;
+                                }
                                 BRANCH => {
                                     print!("branch:{} ", self.data[index as usize + 1]);
                                     index += 1;

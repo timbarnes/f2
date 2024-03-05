@@ -94,7 +94,6 @@ impl TF {
                 return; // we've completed the last exit or encountered an error
             }
             let code = self.data[pc];
-            // println!("{code}");
             match code {
                 BUILTIN => {
                     self.msg
@@ -122,9 +121,8 @@ impl TF {
                 }
                 STRLIT => {
                     pc += 1;
-                    push!(self, pc as i64); // the string address of the data
-                    self.f_r_from();
-                    pc = pop!(self) as usize;
+                    push!(self, self.data[pc] as i64); // the string address of the data
+                    pc += 1;
                 }
                 DEFINITION => {
                     pc += 1;
