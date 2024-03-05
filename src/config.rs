@@ -5,7 +5,7 @@ use crate::messages::DebugLevel;
 
 use ::clap::{arg, Command};
 
-const VERSION: &str = "alpha.24.3.1";
+const VERSION: &str = "alpha.24.3.5";
 const WELCOME_MESSAGE: &str = "Welcome to f2.";
 const EXIT_MESSAGE: &str = "Finished";
 const DEFAULT_CORE: [&str; 2] = ["~/.f2/corelib.fs", "src/corelib.fs"];

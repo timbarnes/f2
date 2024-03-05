@@ -69,7 +69,6 @@ impl TF {
     pub fn f_quit(&mut self) {
         self.set_program_counter(0);
         self.f_abort();
-        print!(" ok ");
         loop {
             if self.should_exit() {
                 break;
@@ -77,10 +76,12 @@ impl TF {
                 self.set_abort_flag(false);
                 self.f_query();
                 self.f_eval(); // interpret the contents of the line
-                if self.show_stack {
-                    self.f_dot_s();
+                if self.reader.len() == 1 {
+                    if self.show_stack {
+                        self.f_dot_s();
+                    }
+                    print!(" ok ");
                 }
-                print!(" ok ");
                 self.f_flush();
             }
         }
