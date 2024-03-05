@@ -58,16 +58,6 @@ impl TF {
         }
     }
 
-    /// [  Install $INTERPRET in 'EVAL
-    pub fn f_lbracket(&mut self) {
-        self.set_compile_mode(false);
-    }
-
-    /// ]  Install $COMPILE in 'EVAL   
-    pub fn f_rbracket(&mut self) {
-        self.set_compile_mode(true);
-    }
-
     pub fn f_abort(&mut self) {
         // empty the stack, reset any pending operations, and return to the prompt
         self.msg
@@ -77,7 +67,6 @@ impl TF {
     }
 
     pub fn f_quit(&mut self) {
-        self.return_stack.clear();
         self.set_program_counter(0);
         self.f_abort();
         print!(" ok ");
@@ -118,7 +107,7 @@ impl TF {
                 NEXT => self.i_next(),
                 _ => {
                     pop!(self);
-                    let cfa = self.data[xt as usize] as usize & !BUILTIN_MASK;
+                    let cfa = self.data[xt as usize] as usize & ADDRESS_MASK;
                     push!(self, cfa as i64);
                     self.i_builtin();
                 }
@@ -130,7 +119,9 @@ impl TF {
     //             self.f_find(); // (s -- nfa, cfa, T | s F )
     pub fn f_eval(&mut self) {
         loop {
-            self.f_text(); //  ( -- b u ) get a token
+            push!(self, self.data[self.pad_ptr]);
+            push!(self, ' ' as i64);
+            self.f_parse_to(); //  ( -- b u ) get a token
             let len = pop!(self);
             if len == FALSE {
                 // u = 0 means EOL
@@ -192,6 +183,7 @@ impl TF {
     ///            If not a number, ABORT.
     pub fn f_d_interpret(&mut self) {
         if stack_ok!(self, 1, "$interpret") {
+            let token_addr = top!(self);
             self.f_find(); // (s -- nfa, cfa, T | s F )
             if pop!(self) == TRUE {
                 // we have a definition
@@ -203,7 +195,7 @@ impl TF {
                     // leave the converted number on the stack
                 } else {
                     pop!(self); // lose the failed number
-                    let word = &self.u_get_string(self.pad_ptr);
+                    let word = &self.u_get_string(token_addr as usize);
                     self.msg
                         .warning("$interpret", "token not recognized", Some(word));
                 }
@@ -247,10 +239,9 @@ impl TF {
     /// leaves n and flag on the stack: true if number is ok.
     pub fn f_number_q(&mut self) {
         let buf_addr = pop!(self);
-        let mut result = 0;
         let numtext = self.u_get_string(buf_addr as usize);
         if u_is_integer(&numtext.as_str()) {
-            result = numtext.parse().unwrap();
+            let result = numtext.parse().unwrap();
             push!(self, result);
             push!(self, TRUE);
         } else {
@@ -283,12 +274,14 @@ impl TF {
         }
     }
 
-    /// ' (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
+    /// (') (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
     /// Looks for a (postfix) word in the dictionary
     /// places it's execution token / address on the stack
     /// Pushes 0 if not found
-    pub fn f_tick(&mut self) {
-        self.f_text(); // ( -- b u )
+    pub fn f_tick_p(&mut self) {
+        push!(self, self.data[self.pad_ptr]);
+        push!(self, ' ' as i64);
+        self.f_parse_to(); // ( -- b u )
         pop!(self); // don't need the delim
         self.f_find(); // look for the token
         if pop!(self) == FALSE {
@@ -296,10 +289,8 @@ impl TF {
             let mut msg = self.u_get_string(self.data[self.pad_ptr] as usize);
             msg = format!("Word not found: {} ", msg);
             self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
-            self.f_type(); // a warning message
+            // self.f_type(); // a warning message *** replace with a call to TELL
             push!(self, FALSE);
-        } else {
-            // we found it, so leave the cfa on the stack
         }
     }
 
@@ -318,7 +309,7 @@ impl TF {
                 let start = in_p as usize;
                 let end = start + buf_len as usize;
                 let mut i = start as usize;
-                let mut j = i;
+                let mut j;
                 while self.strings[i] == delim && i < end {
                     i += 1;
                 }
@@ -338,46 +329,26 @@ impl TF {
         }
     }
 
-    /// TEXT ( -- b u ) Get a space-delimited token from the TIB, place in PAD
-    pub fn f_text(&mut self) {
-        push!(self, ' ' as u8 as i64);
-        self.f_parse();
-    }
-
-    /// \ (backslash)  <text> \n Inline comment: ignores the remainder of the line
-    pub fn f_backslash(&mut self) {
-        push!(self, 1 as u8 as i64);
-        self.f_parse();
-        pop!(self); // throw away stack values left by f_parse
-        pop!(self);
-    }
-
-    /// ( <text> ) Used for stack signature documentation. Ignores everything up to the right paren.
-    pub fn f_l_paren(&mut self) {
-        push!(self, ')' as u8 as i64);
-        self.f_parse();
-        pop!(self); // throw away stack values left by f_parse, causing the text to be abandoned
-        pop!(self);
-    }
-
-    /// PARSE ( c -- b u ) Get a c-delimited token from TIB, and return counted string in PAD
+    /// PARSE-TO ( b d -- b u ) Get a d-delimited token from TIB, and return counted string in string buffer at b
     /// need to check if TIB is empty
     /// if delimiter = 1, get the rest of the TIB
     /// Update >IN as required, and set #TIB to zero if the line has been consumed
-    pub fn f_parse(&mut self) {
-        if stack_ok!(self, 1, "parse") {
+    pub fn f_parse_to(&mut self) {
+        if stack_ok!(self, 2, "parse") {
             let delim: i64 = pop!(self);
-            push!(
-                // starting address in the string
-                self,
-                self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
-            );
+            let dest = pop!(self);
             if delim == 1 {
                 self.data[self.tib_in_ptr] = 1;
                 self.data[self.tib_size_ptr] = 0;
+                push!(self, self.data[self.tib_in_ptr]);
                 push!(self, 0); // indicates nothing found, TIB is empty
                 return;
             } else {
+                push!(
+                    // starting address in the string
+                    self,
+                    self.data[self.tib_ptr] + self.data[self.tib_in_ptr]
+                );
                 push!(
                     // bytes available (length of input string)
                     self,
@@ -393,13 +364,14 @@ impl TF {
                     // copy to pad
                     self.u_str_copy(
                         (addr + delta) as usize,
-                        self.data[self.pad_ptr] as usize,
+                        dest as usize,
                         length as usize,
                         false,
                     );
                 }
                 self.data[self.tib_in_ptr] += delta + length + 1;
-                push!(self, self.data[self.pad_ptr]);
+                //pop!(self);
+                push!(self, dest);
                 push!(self, length);
             }
         }
@@ -417,7 +389,6 @@ impl TF {
     ///   It also has to update HERE and CONTEXT.
     ///   Finally it switches out of compile mode
     pub fn f_semicolon(&mut self) {
-        // add a back pointer and update HERE
         push!(self, EXIT);
         self.f_comma();
         self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
@@ -426,16 +397,18 @@ impl TF {
         self.set_compile_mode(false);
     }
 
-    /// f_create makes a new dictionary entry, using a postfix name
+    /// CREATE <name> ( -- ) makes a new dictionary entry, using a postfix name
     /// References HERE, and assumes back pointer is in place already
     pub fn f_create(&mut self) {
-        self.f_text(); // get the word's name
+        push!(self, self.data[self.pad_ptr]);
+        push!(self, ' ' as i64);
+        self.f_parse_to(); // get the word's name
         pop!(self); // throw away the length, keep the text pointer
         self.f_q_unique(); // issue a warning if it's already defined
         let length = self.strings[self.data[self.pad_ptr] as usize] as u8 as i64;
         push!(self, length);
         push!(self, self.data[self.string_ptr]);
-        self.f_pack_d(); // make a new string with the name from PAD
+        self.f_smove(); // make a new string with the name from PAD
         self.data[self.data[self.here_ptr] as usize] = pop!(self); // the string header
         self.data[self.string_ptr] += length + 1; // update the free string pointer
         self.data[self.last_ptr] = self.data[self.here_ptr];
@@ -449,22 +422,26 @@ impl TF {
         self.f_comma(); // ( n -- )
         push!(self, 0); // default initial value
         self.f_comma();
+        self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+        self.data[self.here_ptr] += 1; // over EXIT and back pointer
+        self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
     }
 
     /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
     pub fn f_constant(&mut self) {
-        self.f_create(); // gets a name and makes a name field in the dictionary
-        push!(self, CONSTANT);
-        self.f_comma(); // ( n -- )
-        push!(self, 0); // default initial value
-        self.f_comma();
+        if stack_ok!(self, 1, "constant") {
+            self.f_create();
+            push!(self, CONSTANT);
+            self.f_comma();
+            self.f_comma(); // write the value from the stack
+            self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+            self.data[self.here_ptr] += 1; // over EXIT and back pointer
+            self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+        }
     }
 
-    /// string <name> ( s -- ) Creates and initializez a new string variable in the dictionary
-    pub fn f_string(&mut self) {}
-
     /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
-    pub fn f_pack_d(&mut self) {
+    pub fn f_smove(&mut self) {
         let dest = pop!(self) as usize;
         let length = pop!(self) as usize;
         let source = pop!(self) as usize;
@@ -477,67 +454,90 @@ impl TF {
 
     /// see <name> ( -- ) prints the definition of a word
     pub fn f_see(&mut self) {
-        self.f_tick(); // finds the address of the word
+        self.f_tick_p(); // finds the address of the word
         let cfa = pop!(self);
-        if cfa == FALSE || self.data[cfa as usize] != DEFINITION {
-            self.msg
-                .error("see", "Can only decompile colon definitions", None::<bool>);
+        if cfa == FALSE {
+            self.msg.warning("see", "Word not found", None::<bool>);
         } else {
-            print!(": ");
-            let name = self.u_get_string(self.data[cfa as usize - 1] as usize);
-            print!("{name} ");
-            let mut index = cfa as usize + 1; // skip the inner interpreter
-            loop {
-                let cfa = self.data[index];
-                match cfa {
-                    BUILTIN => {
-                        let opcode = self.data[self.data[index as usize + 1] as usize] as usize;
-                        let name = &self.builtins[opcode].name;
+            let mut nfa = self.data[cfa as usize - 1] as usize;
+            let is_immed = nfa & IMMEDIATE_MASK;
+            let xt = self.data[cfa as usize] as usize;
+            let is_builtin = xt & BUILTIN_MASK;
+            if is_builtin != 0 {
+                println!(
+                    "Builtin: {}",
+                    self.builtins[xt as usize & !BUILTIN_MASK].doc
+                );
+            } else {
+                // It's a definition of some kind
+                nfa &= ADDRESS_MASK; // get rid of any special bits
+                match xt as i64 {
+                    DEFINITION => {
+                        print!(": ");
+                        let name = self.u_get_string(nfa);
                         print!("{name} ");
-                        index += 1; // we consumed an extra cell
-                    }
-                    VARIABLE => {} // print name
-                    CONSTANT => {} // print name
-                    LITERAL => {
-                        print!("{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    STRLIT => {}                 // print string contents
-                    DEFINITION => print!("???"), // Can't have a definition inside a definition
-                    BRANCH => {
-                        print!("branch:{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    BRANCH0 => {
-                        print!("branch0:{} ", self.data[index as usize + 1]);
-                        index += 1;
-                    }
-                    ABORT => println!("abort "),
-                    EXIT => {
-                        println!(";");
-                        break;
-                    }
-                    NEXT => {
-                        println!(";");
-                        break;
-                    }
-                    _ => {
-                        // it's a colon definition or a builtin
-                        let mut cfa = self.data[index] as usize;
-                        let mut mask = cfa & BUILTIN_MASK;
-                        if mask == 0 {
-                            let word = self.data[self.data[cfa] as usize - 1]; // nfa address
-                            let name = self.u_get_string(word as usize);
-                            print!("{name} ");
-                        } else {
-                            mask = !BUILTIN_MASK;
-                            cfa &= mask;
-                            let name = &self.builtins[cfa].name;
-                            print!("{name} ");
+                        let mut index = cfa as usize + 1; // skip the inner interpreter
+                        loop {
+                            let xt = self.data[index];
+                            match xt {
+                                LITERAL => {
+                                    print!("{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                STRLIT => {
+                                    let s_addr = self.data[index as usize + 1] as usize;
+                                    print!("\" {}\" ", self.u_get_string(s_addr));
+                                    index += 1;
+                                }
+                                BRANCH => {
+                                    print!("branch:{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                BRANCH0 => {
+                                    print!("branch0:{} ", self.data[index as usize + 1]);
+                                    index += 1;
+                                }
+                                ABORT => println!("abort "),
+                                EXIT => {
+                                    print!("; ");
+                                    if is_immed != 0 {
+                                        println!("immediate");
+                                    } else {
+                                        println!();
+                                    }
+                                    break;
+                                }
+                                _ => {
+                                    // it's a definition or a builtin
+                                    let mut cfa = self.data[index] as usize;
+                                    let mut mask = cfa & BUILTIN_MASK;
+                                    if mask == 0 {
+                                        let word = self.data[self.data[index] as usize - 1]; // nfa address
+                                        let name = self.u_get_string(word as usize);
+                                        print!("{name} ");
+                                    } else {
+                                        mask = !BUILTIN_MASK;
+                                        cfa &= mask;
+                                        let name = &self.builtins[cfa].name;
+                                        print!("{name} ");
+                                    }
+                                }
+                            }
+                            index += 1;
                         }
                     }
+                    CONSTANT => println!(
+                        "Constant: {} = {}",
+                        self.u_get_string(self.data[cfa as usize - 1] as usize),
+                        self.data[cfa as usize]
+                    ),
+                    VARIABLE => println!(
+                        "Variable: {} = {}",
+                        self.u_get_string(self.data[cfa as usize - 1] as usize),
+                        self.data[cfa as usize + 1]
+                    ),
+                    _ => self.msg.error("see", "Unrecognized type", None::<bool>),
                 }
-                index += 1;
             }
         }
     }

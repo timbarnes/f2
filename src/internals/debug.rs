@@ -39,18 +39,6 @@ impl TF {
         self.show_stack = false;
     }
 
-    /// WORDS ( -- ) Print a list of all defined words
-    ///              Includes definitions, builtins, variables and constants
-    pub fn f_words(&mut self) {
-        // walk the definition linked list and print each entry's name
-        println!("words - not implemented");
-    }
-
-    /// SEE-ALL ( -- ) Show decompiled versions of all the defined words
-    pub fn f_see_all(&mut self) {
-        println!("see-all - not implemented")
-    }
-
     /// DEPTH - print the number of items on the stack
     pub fn f_stack_depth(&mut self) {
         let depth = STACK_START - self.stack_ptr;

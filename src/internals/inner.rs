@@ -76,10 +76,9 @@ impl TF {
     ///    A program counter is used to step through the entries in the definition.
     ///    Each entry is one or two cells, and may be an inner interpreter code, with or without an argument,
     ///    or a defined word. For space efficiency, builtin words and user defined (colon) words are
-    ///    represented by the cfa of their definition. The interpreter calls the builtin code.
+    ///    represented by the cfa of their definition, overlaid with a flag. The interpreter calls the builtin code.
     ///    For nested definitions, the inner interpreter pushes the program counter (PC) and continues.
     ///    When the end of a definition is found, the PC is restored from the previous caller.
-    ///    Not sure how we know we're done and ready to return to the command line. ***
     ///
     ///    Most data is represented by an address, so self.data[pc] is the cfa of the word referenced.
     ///    Each operation advances the pc to the next token.
@@ -95,17 +94,10 @@ impl TF {
                 return; // we've completed the last exit or encountered an error
             }
             let code = self.data[pc];
-            // println!("{code}");
             match code {
                 BUILTIN => {
                     self.msg
                         .error("i_definition", "Found BUILTIN???", Some(code));
-                    /*                     let index = self.data[pc + 1] as usize;
-                                      let op = &self.builtins[index];
-                                      let func = op.code;
-                                      func(self);
-                    */
-                    // return
                     self.f_r_from();
                     pc = pop!(self) as usize;
                 }
@@ -129,9 +121,8 @@ impl TF {
                 }
                 STRLIT => {
                     pc += 1;
-                    push!(self, pc as i64); // the string address of the data
-                    self.f_r_from();
-                    pc = pop!(self) as usize;
+                    push!(self, self.data[pc] as i64); // the string address of the data
+                    pc += 1;
                 }
                 DEFINITION => {
                     pc += 1;
@@ -200,8 +191,11 @@ impl TF {
     /// Force an abort
     pub fn i_abort(&mut self) {}
 
-    /// Leave the current word
-    pub fn i_exit(&mut self) {}
+    /// Leave the current word *** doesn't work, because there's no way to reset the program counter from here
+    pub fn i_exit(&mut self) {
+        self.f_r_from();
+        // pc = pop!(self) as usize;
+    }
 
     /// Continue to the next word
     pub fn i_next(&mut self) {}
@@ -209,77 +203,4 @@ impl TF {
     /// f_marker <name> ( -- ) sets a location for FORGET
     ///     It creates a definition called <name> that has the effect of resetting HERE and CONTEXT       
     pub fn f_marker(&mut self) {}
-
-    /// f_if ( b -- ) if the top of stack is TRUE, continue, otherwise branch to ELSE; IMMEDIATE
-    ///     Implemented by compiling BRANCH0 and an offset word, putting the offset word's address on the return stack.
-    pub fn f_if(&mut self) {
-        // need to know the current address where the definition is happening. ***
-        // We should be able to use HERE
-        push!(self, BRANCH0);
-        self.f_comma();
-        push!(self, self.data[self.here_ptr]);
-        self.f_to_r();
-        push!(self, 0); // placeholder
-        self.f_comma();
-    }
-
-    /// f_else ( -- ) branch to THEN; IMMEDIATE
-    ///     Compile time: Compiles BRANCH0 and an offset word, putting the offset word's address on the return stack.
-    ///     Resolves the address on the return stack and stores into IF's branch offset.
-    pub fn f_else(&mut self) {
-        let here = self.data[self.here_ptr];
-        self.f_r_from();
-        let there = pop!(self);
-        self.data[there as usize] = here - there + 2; // to skip the branch
-        push!(self, BRANCH);
-        self.f_comma();
-        push!(self, self.data[self.here_ptr]);
-        self.f_to_r();
-        push!(self, 0);
-        self.f_comma();
-    }
-
-    /// f_then ( -- ) no execution semantics; IMMEDIATE
-    ///     Compile time: Resolves the address on the stack, storing it into IF or ELSE's branch offset.
-    ///                   Compiles a BRANCH and pushes it's offset address on the return stack.
-    pub fn f_then(&mut self) {
-        let here = self.data[self.here_ptr];
-        self.f_r_from();
-        let there = pop!(self);
-        // println!("Here:{} There:{}", here, there);
-        self.data[there as usize] = here - there;
-    }
-
-    /// f_for ( -- ) no execution semantics; IMMEDIATE
-    ///     Compile time: Compiles a >R and puts the pc on the compute stack.
-    pub fn f_for(&mut self) {
-        push!(self, self.data[self.here_ptr]); // so NEXT can calculate the BRANCH0
-        push!(self, 2305843009213694009); // *** hardwired address of >R !!! Not good !!!
-        self.f_comma();
-    }
-
-    /// f_next ( -- ) decrement loop counter; if <= 0, continue; otherwise push loop counter and branch back; IMMEDIATE
-    ///     Compile time: Resolves the address on the stack, storing it into FOR's branch offset.
-    pub fn f_next(&mut self) {
-        push!(self, 2305843009213694010); // R>
-        self.f_comma();
-        push!(self, LITERAL);
-        self.f_comma();
-        push!(self, 1);
-        self.f_comma();
-        push!(self, 2305843009213693965); // -
-        self.f_comma();
-        push!(self, 2305843009213693987); // DUP
-        self.f_comma();
-        push!(self, 2305843009213693974); // 0=
-        self.f_comma();
-        push!(self, BRANCH0);
-        self.f_comma();
-        let here = self.data[self.here_ptr];
-        let there = pop!(self);
-        push!(self, there - here);
-        self.f_comma();
-        push!(self, 2305843009213693988);
-        self.f_comma();
-    }
 }

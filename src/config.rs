@@ -5,15 +5,21 @@ use crate::messages::DebugLevel;
 
 use ::clap::{arg, Command};
 
-const VERSION: &str = "alpha.24.2.20";
-const WELCOME_MESSAGE: &str = "Welcome to tForth.";
+const VERSION: &str = "alpha.24.3.1";
+const WELCOME_MESSAGE: &str = "Welcome to f2.";
 const EXIT_MESSAGE: &str = "Finished";
-const DEFAULT_CORE: [&str; 2] = ["~/.tforth/corelib.fs", "src/corelib.fs"];
+const DEFAULT_CORE: [&str; 2] = ["~/.f2/corelib.fs", "src/corelib.fs"];
+
+macro_rules! push {
+    ($self:ident, $val:expr) => {
+        $self.stack_ptr -= 1;
+        $self.data[$self.stack_ptr] = $val;
+    };
+}
 
 pub struct Config {
     debug_level: DebugLevel,
     loaded_file: String,
-    loaded_core: bool,
     core_file: String,
     no_core: bool,
     pub run: bool,
@@ -24,7 +30,6 @@ impl Config {
         Config {
             debug_level: DebugLevel::Error,
             loaded_file: "".to_owned(),
-            loaded_core: false,
             core_file: DEFAULT_CORE[0].to_owned(),
             no_core: false,
             run: true,
@@ -79,36 +84,25 @@ impl Config {
     pub fn run_forth(&mut self) {
         // create and run the interpreter
         // return when finished
+        fn load_file(interpreter: &mut TF, file_name: &str) {
+            TF::u_set_string(
+                interpreter,
+                interpreter.data[interpreter.tmp_ptr] as usize,
+                file_name,
+            );
+            push!(interpreter, interpreter.data[interpreter.tmp_ptr]);
+            interpreter.f_include_file();
+        }
 
-        let mut forth = TF::new("Ok ");
+        let mut forth = TF::new();
         forth.cold_start();
-
-        forth.msg.set_level(self.debug_level.clone());
-
         if !self.no_core {
             for path in DEFAULT_CORE {
-                if forth.load_file(&path.to_owned()) {
-                    self.loaded_core = true;
-                    forth
-                        .msg
-                        .info("MAIN", "Loaded core dictionary", Some(&self.core_file));
-                    break;
-                }
-            }
-            if !self.loaded_core {
-                forth.msg.error(
-                    "MAIN",
-                    "Unable to load core dictionary",
-                    Some(&self.core_file),
-                );
+                load_file(&mut forth, &path);
             }
         }
         if self.loaded_file != "" {
-            if !forth.load_file(&self.loaded_file) {
-                forth
-                    .msg
-                    .error("MAIN", "Unable to load userfile", Some(&self.loaded_file));
-            }
+            load_file(&mut forth, &self.loaded_file);
         }
 
         forth.set_abort_flag(false); // abort flag may have been set by load_file, but is no longer needed.

@@ -1,6 +1,7 @@
 // General-purpose builtin words
 
 use crate::engine::{FALSE, STACK_START, TF, TRUE};
+use std::time::Instant;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -52,13 +53,6 @@ macro_rules! pop1_push1 {
         }
     };
 }
-/* macro_rules! pop1 {
-    ($self:ident, $word:expr, $code:expr) => {
-        if let Some(x) = $self.pop_one(&$word) {
-            $code(x);
-        }
-    };
-} */
 
 pub fn u_is_integer(s: &str) -> bool {
     s.parse::<i64>().is_ok()
@@ -122,7 +116,7 @@ impl TF {
     }
 
     pub fn f_bye(&mut self) {
-        self.set_exit_flag();
+        self.exit_flag = true;
     }
 
     pub fn f_dup(&mut self) {
@@ -225,9 +219,64 @@ impl TF {
         push!(self, self.data[self.return_ptr + 1]);
     }
 
-    /// recurse ( -- ) Branches to the beginning of the current word.
-    ///     Branch distance needs to be calculated somehow... ***
-    pub fn f_recurse(&mut self) {
-        self.msg.error("recurse", "Not implemented", None::<bool>);
+    /// c@ - ( s -- c ) read a character from a string and place on the stack
+    pub fn f_c_get(&mut self) {
+        if stack_ok!(self, 1, "c@") {
+            let s_address = pop!(self) as usize;
+            push!(self, self.strings[s_address] as u8 as i64);
+        }
+    }
+
+    /// c! - ( c s -- ) read a character from a string and place on the stack
+    pub fn f_c_store(&mut self) {
+        if stack_ok!(self, 2, "c!") {
+            let s_address = pop!(self) as usize;
+            self.strings[s_address] = pop!(self) as u8 as char;
+        }
+    }
+
+    /// s-copy (s-from s-to -- s-to )
+    pub fn f_s_copy(&mut self) {
+        if stack_ok!(self, 2, "s-copy") {
+            let dest = pop!(self) as usize;
+            let result_ptr = dest as i64;
+            let source = pop!(self) as usize;
+            let length = self.strings[source] as u8 as usize + 1;
+            let mut i = 0;
+            while i < length {
+                self.strings[dest + i] = self.strings[source + i];
+                i += 1;
+            }
+            self.data[self.string_ptr] += length as i64;
+            push!(self, result_ptr);
+        }
+    }
+    /// s-create ( s-from -- s-to ) copies a counted string into the next empty space, updating the free space pointer
+    pub fn f_s_create(&mut self) {
+        if stack_ok!(self, 1, "s-create") {
+            let source = top!(self) as usize;
+            let length = self.strings[source] as usize;
+            let dest = self.data[self.string_ptr];
+            push!(self, dest); // destination
+            self.f_s_copy();
+            self.data[self.string_ptr] += length as i64 + 1;
+        }
+    }
+
+    /// f_now ( -- ) Start a timer
+    pub fn f_now(&mut self) {
+        self.timer = Instant::now();
+    }
+
+    /// micros ( -- n ) returns the number of microseconds since NOW was called
+    pub fn f_micros(&mut self) {
+        let duration = self.timer.elapsed();
+        push!(self, duration.as_micros() as i64);
+    }
+
+    /// millis ( -- n ) returns the number of milliseconds since NOW was called
+    pub fn f_millis(&mut self) {
+        let duration = self.timer.elapsed();
+        push!(self, duration.as_millis() as i64);
     }
 }

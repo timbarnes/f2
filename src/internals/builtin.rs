@@ -1,10 +1,10 @@
-use crate::engine::PAD_START;
 /// Interpreter for builtins
 ///
 /// Set up a table of builtin functions, with names and code
 
 #[allow(dead_code)]
 use crate::engine::{BUILTIN_MASK, FALSE, STR_START, TF, TIB_START, VARIABLE};
+use crate::engine::{PAD_START, TMP_START};
 
 pub trait BuiltinCall {
     fn call(&mut self);
@@ -31,36 +31,38 @@ impl TF {
         // install system variables in data area
         // hand craft S-HERE (free string pointer) so write_string() can work
         self.data[0] = 0;
-        self.data[1] = STR_START as i64; //
+        self.data[1] = 0;
+        self.data[2] = STR_START as i64; //
         self.strings[STR_START] = 6 as char; // length of "s-here"
         for (i, c) in "s-here".chars().enumerate() {
             self.strings[i + STR_START + 1] = c;
         }
-        self.string_ptr = 3;
-        self.data[2] = VARIABLE;
-        self.data[3] = (STR_START + 7) as i64; // update the value of S-HERE
-        self.data[4] = 0; // back pointer
+        self.string_ptr = 4;
+        self.data[3] = VARIABLE;
+        self.data[4] = (STR_START + 7) as i64; // update the value of S-HERE
+        self.data[5] = 1; // back pointer
                           // hand craft HERE, because it's needed by make_word
         let name_pointer = self.u_new_string("here");
-        self.data[5] = name_pointer as i64;
-        self.data[6] = VARIABLE;
-        self.data[7] = 9; // the value of HERE
-        self.data[8] = 4; // back pointer
-        self.here_ptr = 7; // the address of the HERE variable
+        self.data[6] = name_pointer as i64;
+        self.data[7] = VARIABLE;
+        self.data[8] = 10; // the value of HERE
+        self.data[9] = 5; // back pointer
+        self.here_ptr = 8; // the address of the HERE variable
 
         // hand craft CONTEXT, because it's needed by make_word
-        self.data[9] = self.u_new_string("context") as i64;
-        self.data[10] = VARIABLE;
-        self.data[11] = 9;
-        self.data[12] = 8; // back pointer
-        self.context_ptr = 11;
-        self.data[self.here_ptr] = 13;
+        self.data[10] = self.u_new_string("context") as i64;
+        self.data[11] = VARIABLE;
+        self.data[12] = 10;
+        self.data[13] = 9; // back pointer
+        self.context_ptr = 12;
+        self.data[self.here_ptr] = 14;
 
         self.pad_ptr = self.u_make_variable("pad");
         self.data[self.pad_ptr] = PAD_START as i64;
         self.base_ptr = self.u_make_variable("base");
         self.data[self.base_ptr] = 10; // decimal
-                                       //self.tmp_ptr = self.make_variable("tmp");
+        self.tmp_ptr = self.u_make_variable("tmp");
+        self.data[self.tmp_ptr] = TMP_START as i64;
         self.tib_ptr = self.u_make_variable("'tib");
         self.data[self.tib_ptr] = 0;
         self.tib_size_ptr = self.u_make_variable("#tib");
@@ -69,8 +71,9 @@ impl TF {
         self.data[self.tib_in_ptr] = TIB_START as i64 + 1;
         self.hld_ptr = self.u_make_variable("hld");
         self.last_ptr = self.u_make_variable("last"); // points to nfa of new definition
-        self.compile_ptr = self.u_make_variable("'eval");
+        self.state_ptr = self.u_make_variable("'eval");
         self.abort_ptr = self.u_make_variable("abort?");
+        self.state_ptr = self.u_make_variable("state");
         self.data[self.abort_ptr] = FALSE;
     }
 
@@ -99,12 +102,12 @@ impl TF {
         code_ptr + 1 // the location of the variable's value
     }
 
-    fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
-        // Create a constant
-        let code_ptr = self.u_make_word(name, &[val]); // install the name
-        code_ptr + 1
-    }
-
+    /* fn u_make_constant(&mut self, name: &str, val: i64) -> usize {
+           // Create a constant
+           let code_ptr = self.u_make_word(name, &[val]); // install the name
+           code_ptr + 1
+       }
+    */
     /// u_make_word Install a new word with provided name and arguments
     /// back link is already in place
     /// place it HERE
@@ -138,53 +141,53 @@ impl TF {
         self.u_add_builtin(
             "_builtin",
             TF::i_builtin,
-            "_builtin ( opcode -- ) executes the builtin on the stack",
+            "_builtin  opcode -- executes the builtin on the stack",
         );
         self.u_add_builtin(
             "_variable",
             TF::i_variable,
-            "variable ( opcode -- ) loads a variable's address on the stack",
+            "variable  opcode -- loads a variable's address on the stack",
         );
         self.u_add_builtin(
             "_constant",
             TF::i_constant,
-            "_constant ( opcode -- ) loads a constant's value on the stack",
+            "_constant  opcode -- loads a constant's value on the stack",
         );
         self.u_add_builtin(
             "_literal",
             TF::i_literal,
-            "_literal ( opcode -- ) loads a number on the stack",
+            "_literal  opcode -- loads a number on the stack",
         );
         self.u_add_builtin(
             "_stringlit",
             TF::i_strlit,
-            "_stringlit ( opcode -- ) loads a string pointer on the stack",
+            "_stringlit  opcode -- loads a string pointer on the stack",
         );
         self.u_add_builtin(
             "_definition",
             TF::i_builtin,
-            "_definition ( opcode -- ) executes a colon definition",
+            "_definition  opcode -- executes a colon definition",
         );
         self.u_add_builtin(
             "_branch",
             TF::i_branch,
-            "_branch ( opcode -- ) executes an unconditional branch",
+            "_branch  opcode -- executes an unconditional branch",
         );
         self.u_add_builtin(
             "_branch0",
             TF::i_branch0,
-            "_branch0 ( opcode --  executes a branch if zero",
+            "_branch0 opcode -- executes a branch if zero",
         );
         self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
         self.u_add_builtin(
-            "_exit",
+            "exit",
             TF::i_exit,
-            "_exit ( opcode -- ) returns from the current definition",
+            "exit ( -- ) returns from the current definition",
         );
         self.u_add_builtin(
             "_next",
             TF::i_next,
-            "_next ( opcode -- ) end of word - continue to the next one",
+            "_next opcode -- end of word - continue to the next one",
         );
         // Start of normal functions
         self.u_add_builtin(
@@ -232,11 +235,11 @@ impl TF {
             TF::f_0less,
             "( j k -- j/k ) If j < 0 push true else false",
         );
-        self.u_add_builtin(
+        /*         self.u_add_builtin(
             ".s",
             TF::f_dot_s,
             ".s ( -- ) Print the contents of the calculation stack",
-        );
+        ); */
         self.u_add_builtin("cr", TF::f_cr, "cr ( -- ) Print a newline");
         self.u_add_builtin(
             "show-stack",
@@ -247,11 +250,6 @@ impl TF {
             "hide-stack",
             TF::f_hide_stack,
             "hide-stack ( -- ) Turn off automatic stack display",
-        );
-        self.u_add_builtin(
-            ".s\"",
-            TF::f_dot_s_quote,
-            ".s\" Print the contents of the pad",
         );
         self.u_add_builtin(
             "emit",
@@ -266,11 +264,6 @@ impl TF {
         self.u_add_builtin("clear", TF::f_clear, "clear: resets the stack to empty");
         self.u_add_builtin(":", TF::f_colon, ": starts a new definition");
         self.u_add_builtin("bye", TF::f_bye, "bye: exits to the operating system");
-        self.u_add_builtin(
-            "words",
-            TF::f_words,
-            "words: Lists all defined words to the terminal",
-        );
         self.u_add_builtin(
             "dup",
             TF::f_dup,
@@ -316,11 +309,6 @@ impl TF {
             "abort ( -- ) Ends execution of the current word and clears the stack",
         );
         self.u_add_builtin(
-            "see-all",
-            TF::f_see_all,
-            "see-all: Prints the definitions of known words",
-        );
-        self.u_add_builtin(
             "depth",
             TF::f_stack_depth,
             "depth: Pushes the current stack depth",
@@ -328,7 +316,7 @@ impl TF {
         self.u_add_builtin(
             "key",
             TF::f_key,
-            "key ( -- c ) Get a character from the terminal",
+            "key ( -- c | 0 ) get a character and push on the stack, or zero if none available",
         );
         self.u_add_builtin("r/w", TF::f_r_w, "");
         self.u_add_builtin("r/o", TF::f_r_o, "");
@@ -366,9 +354,6 @@ impl TF {
             TF::f_immediate,
             "immediate sets the immediate flag on the most recently defined word",
         );
-        self.u_add_builtin("[", TF::f_lbracket, "[ ( -- ) Exit compile mode");
-        self.f_immediate();
-        self.u_add_builtin("]", TF::f_rbracket, "] ( -- ) Enter compile mode");
         self.u_add_builtin(
             "quit",
             TF::f_quit,
@@ -402,9 +387,9 @@ impl TF {
         Return it's address or FALSE if not found",
         );
         self.u_add_builtin(
-            "'",
-            TF::f_tick,
-            "' (tick): searches the dictionary for a (postfix) word",
+            "(')",
+            TF::f_tick_p,
+            "(') <name> ( -- a ) searches the dictionary for a (postfix) word, returning its address",
         );
         self.u_add_builtin(
             "query",
@@ -418,47 +403,21 @@ impl TF {
         Return the pointer to the buffer and the actual number of characters read.",
         );
         self.u_add_builtin(
-            "text",
-            TF::f_text,
-            "TEXT ( -- ) Get a space-delimited token from the TIB, place in PAD",
-        );
-        self.u_add_builtin(
-            "parse",
-            TF::f_text,
-            "PARSE ( c -- b u ) Get a c-delimited token from TIB, 
-        and return counted string in PAD",
+            "parse-to",
+            TF::f_parse_to,
+            "parse-to ( b c -- b u ) Get a c-delimited token from TIB, and return counted string in string buffer b",
         );
         self.u_add_builtin(
             "(parse)",
-            TF::f_text,
+            TF::f_parse_p,
             "(parse) - b u c -- b u delta ) return the location of a delimited token in string space",
         );
-        self.u_add_builtin(
-            "s\"",
-            TF::f_s_quote,
-            "s\" Place the following string in the PAD",
-        );
-        self.u_add_builtin(
-            "type",
-            TF::f_type,
-            "type: print a string using pointer on stack",
-        );
-        self.u_add_builtin(
-            "recurse",
-            TF::f_recurse,
-            "recurse ( -- ) implements recursion inside a word definition",
-        );
-        self.u_add_builtin(
-            "\\",
-            TF::f_backslash,
-            "\\ ( -- ) Comment: ignore the remainder of the line",
-        );
-        self.u_add_builtin(
-            "(",
-            TF::f_l_paren,
-            "( <text> ) Inline comment - text inside the parens is ignored",
-        );
-        self.f_immediate();
+        /*        self.u_add_builtin(
+                   "s\"",
+                   TF::f_s_quote,
+                   "s\" Place the following string in the TMP string buffer",
+               );
+        */
         self.u_add_builtin(
             "variable",
             TF::f_variable,
@@ -476,7 +435,7 @@ impl TF {
         );
         self.u_add_builtin(
             "pack$",
-            TF::f_pack_d,
+            TF::f_smove,
             "pack$ ( src n dest -- ) copies a counted string to a new location",
         );
         self.u_add_builtin(
@@ -502,22 +461,35 @@ impl TF {
         );
         self.u_add_builtin("see", TF::f_see, "see <name> decompiles and prints a word");
         self.u_add_builtin(
-            "if",
-            TF::f_if,
-            "if ( b -- ) if b is true, continue; otherwise branch to else or then",
+            "s-create",
+            TF::f_s_create,
+            "s-create ( s1 -- s2 ) Copy a string to the head of free space and return its address",
         );
-        self.f_immediate();
-        self.u_add_builtin("else", TF::f_else, "else ( -- ) branch to then");
-        self.f_immediate();
-        self.u_add_builtin("then", TF::f_then, "then ( -- ) continue");
-        self.f_immediate();
-        self.u_add_builtin("for", TF::f_for, "for ( n -- ) continue");
-        self.f_immediate();
         self.u_add_builtin(
-            "next",
-            TF::f_next,
-            "next ( -- ) decrement loop counter, and branch back if > 0",
+            "s-copy",
+            TF::f_s_copy,
+            "s-copy ( source dest -- ) Copy a counted string from source to dest",
         );
-        self.f_immediate();
+        self.u_add_builtin(
+            "c@",
+            TF::f_c_get,
+            "c@ ( s -- c ) Copy a character from string address s to the stack",
+        );
+        self.u_add_builtin(
+            "c!",
+            TF::f_c_store,
+            "c! ( c s -- ) Copy character c to string address s",
+        );
+        self.u_add_builtin("now", TF::f_now, "c! ( -- ) Start a timers");
+        self.u_add_builtin(
+            "micros",
+            TF::f_micros,
+            "elapsed ( -- n ) Microseconds since NOW was called",
+        );
+        self.u_add_builtin(
+            "millis",
+            TF::f_millis,
+            "millis ( -- n ) Milliseconds since NOW was called",
+        );
     }
 }

@@ -1,4 +1,4 @@
-// Tforth main program
+// f2 main program
 // Version 0.1
 
 mod config;
