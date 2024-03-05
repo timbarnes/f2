@@ -133,7 +133,7 @@
     #tib @ >in @ < if FALSE else key TRUE then ;        \ otherwise push FALSE
 : strlen ( s -- n ) c@ ;                                \ return the count byte from the string
                                                 
-\ s" src/regression.fs" 
+\ s" src/regression.fs" drop drop
 \ : run-regression include ;
 
 

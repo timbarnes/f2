@@ -397,7 +397,7 @@ impl TF {
         self.set_compile_mode(false);
     }
 
-    /// f_create makes a new dictionary entry, using a postfix name
+    /// CREATE <name> ( -- ) makes a new dictionary entry, using a postfix name
     /// References HERE, and assumes back pointer is in place already
     pub fn f_create(&mut self) {
         push!(self, self.data[self.pad_ptr]);
