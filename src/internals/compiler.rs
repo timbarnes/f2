@@ -267,8 +267,10 @@ impl TF {
     /// UNIQUE? (s -- s )
     /// Checks the dictionary to see if the word pointed to is defined.
     pub fn f_q_unique(&mut self) {
+        self.f_dup();
         self.f_find();
         let result = pop!(self);
+        pop!(self);
         if result == TRUE {
             self.msg
                 .warning("unique?", "Overwriting existing definition", None::<bool>);
