@@ -1,6 +1,6 @@
 // Debugging help
 
-use crate::engine::{FALSE, STACK_START, TF, TRUE};
+use crate::engine::{FALSE, STACK_START, TF};
 use crate::messages::DebugLevel;
 
 macro_rules! stack_ok {
@@ -61,29 +61,40 @@ impl TF {
     }
 
     pub fn u_step(&mut self, address: usize, is_builtin: bool) {
-        let mut c;
-        if self.data[self.stepper_ptr] == TRUE {
-            print!("Step> ");
-            self.f_flush();
-            loop {
-                self.f_key();
-                c = pop!(self) as u8 as char;
-                if c != '\n' {
-                    break;
-                }
-            }
-            match c {
-                's' => {
-                    self.f_dot_s();
-                    if is_builtin {
-                        println!(" {} ", &self.builtins[address].name);
-                    } else {
-                        println!(" {} ", self.u_get_string(self.data[address - 1] as usize));
+        let mode = self.data[self.stepper_ptr];
+        let mut c = '\n';
+        match mode {
+            0 => return, // stepper is off
+            -1 => {
+                // step mode: get a character
+                print!("Step> ");
+                self.f_flush();
+                loop {
+                    self.f_key();
+                    c = pop!(self) as u8 as char;
+                    if c != '\n' {
+                        break;
                     }
                 }
-                'c' => self.data[self.stepper_ptr] = FALSE,
-                _ => println!("Stepper: 's' for show, 'c' for continue."),
             }
+            _ => {
+                // trace mode
+                c = 's';
+            }
+        }
+        print!("Step> ");
+        self.f_flush();
+        match c {
+            's' => {
+                self.f_dot_s();
+                if is_builtin {
+                    println!(" {} ", &self.builtins[address].name);
+                } else {
+                    println!(" {} ", self.u_get_string(self.data[address - 1] as usize));
+                }
+            }
+            'c' => self.data[self.stepper_ptr] = FALSE,
+            _ => println!("Stepper: 's' for show, 'c' for continue."),
         }
     }
 }

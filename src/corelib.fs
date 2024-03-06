@@ -95,7 +95,7 @@
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
 
 : space ( -- ) BL emit ;
-: spaces ( n -- ) 1- for space next ;
+: spaces ( n -- ) for space next ;
 
 : type ( s -- ) ADDRESS_MASK and dup c@ dup rot + swap for dup i - 1+ c@ emit next drop BL emit ;
 
@@ -116,8 +116,12 @@
 : .word ( bp -- bp ) dup dup '[' emit . 1+ @ type ']' emit space @ ;             \ prints a word name, given the preceding back pointer
 : words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
 
-: step-on TRUE stepper ! ;
-: step-off FALSE stepper ! ;
+\ Stepper controls
+: step-on -1 stepper ! ;
+: step-off 0 stepper ! ;
+: trace-on 1 stepper ! ;
+: trace-off 0 stepper ! ;
+
 : dbg-debug 3 dbg ;
 : dbg-info 2 dbg ;
 : dbg-warning 1 dbg ;
