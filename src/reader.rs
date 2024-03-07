@@ -18,7 +18,10 @@ pub struct Reader {
     msg: Msg,
 }
 
+/// Reader handles input, from stdin or files
 impl Reader {
+    /// Reader::new creates a new stream handle
+    ///
     pub fn new(file_path: Option<&std::path::PathBuf>, msg_handler: Msg) -> Option<Reader> {
         // Initialize a tokenizer.
         let mut message_handler = Msg::new();
@@ -48,6 +51,8 @@ impl Reader {
         }
     }
 
+    /// get_line returns a line of text from the input stream, or an error if unable to do so
+    ///
     pub fn get_line(&mut self) -> Option<String> {
         // Read a line, storing it if there is one
         // In interactive (stdin) mode, blocks until the user provides a line.
@@ -77,6 +82,10 @@ impl Reader {
         }
     }
 
+    /// read_char gets a single character from the input stream
+    ///     Unfortunately it blocks until the user types return, so it can't be used
+    ///     for truly interactive operations without a more complex implementation
+    ///
     pub fn read_char(&self) -> Option<char> {
         let mut buf = [0; 1];
         let mut handle = io::stdin().lock();

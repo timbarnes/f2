@@ -4,6 +4,18 @@
 
 1 dbg \ set debuglevel to warnings and errors
 
+\ here points to the slot where the new back pointer goes
+\ last and context point to the previous word's name field address
+
+: .close (  -- )                      \ terminate a definition, writing a back pointer and updating context, last, and here
+        last @ 1 - here !             \ write the new back pointer
+        here @ dup last ! context !   \ update LAST and CONTEXT
+        here @ 1 + here !                  \ increment HERE over the back pointer
+        ;
+
+: const ( n -- ) create 1002 , ,      \ v constant <name> creates a constant with value v
+    .close ;          
+
 0 constant FALSE
 -1 constant TRUE
 
@@ -39,13 +51,13 @@
 
 : text BL parse ;                                   \ Parser shortcut for space-delimited tokens
 : s-parse tmp @ swap parse-to ;                     \ Same as text, but loads to tmp instead of pad
-: s" ( -- s u ") tmp @ '"' parse-to ;         \ Places a double-quoted string in tmp
+: s" ( -- s u ") tmp @ '"' parse-to ;               \ Places a double-quoted string in tmp
 
 ( File reader functions )
 : included tmp @ include-file ; \ include-file uses a string pointer on the stack to load a file
 : include tmp @ 32 parse-to included ;
 
-: [ FALSE state ! ; immediate                                \ Turns compile mode off
+: [ FALSE state ! ; immediate                       \ Turns compile mode off
 : ] TRUE state ! ;                                  \ Turns compile mode on
 
 \ Untested implementation of recursion support
@@ -95,32 +107,68 @@
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
 
 : space ( -- ) BL emit ;
-: spaces ( n -- ) 1- for space next ;
+: spaces ( n -- ) for space next ;
 
-: type ( s -- ) ADDRESS_MASK and dup c@ dup rot + swap for dup i - 1+ c@ emit next drop BL emit ;
+: type ( s -- )                                 \ Print from the string pointer on the stack
+    ADDRESS_MASK and                            \ Wipe out any flags
+    dup c@ dup rot + swap                       \ Get the length to drive the for loop
+    for 
+        dup i - 1+ c@ emit                      \ Output one character
+    next 
+        drop BL emit ;                          \ Emit a final space
 
-: tell ( s l -- ) swap ADDRESS_MASK and swap for dup i - 1+ c@ emit next drop BL emit ;
+: tell ( s l -- )                               \ like type, but length is provided: useful for substrings
+    swap ADDRESS_MASK and swap 
+    for 
+        dup i - 1+ c@ emit 
+    next 
+        drop BL emit ;
 
-: .tmp tmp @ type ;
-: .pad pad @ type ;
-: ." state @
+: .tmp tmp @ type ;                             \ Print the tmp buffer
+: .pad pad @ type ;                             \ Print the pad buffer
+: ." state @                                    \ Compile or print a string
     if
-        STRLIT , 
+        STRLIT ,                                \ Compilation section
         s" drop s-create ,
         ['] type ,
     else
-        s" drop type
+        s" drop type                            \ Print section
     then ; immediate
 
 \ Implementation of word
 : .word ( bp -- bp ) dup dup '[' emit . 1+ @ type ']' emit space @ ;             \ prints a word name, given the preceding back pointer
-: words ( -- ) here @ 1- @ begin .word dup not until ;   \ loops through the words in the dictionary
+: words ( -- ) 
+    here @ 1- @                                 \ Get the starting point: the top back pointer
+    begin                                       \ loops through the words in the dictionary
+        .word dup not                           \ print a word and test the next pointer
+    until 
+        drop ;   
+
+\ Stepper controls
+: step-on -1 stepper ! ;
+: step-off 0 stepper ! ;
+: trace-on 1 stepper ! ;
+: trace-off 0 stepper ! ;
 
 : dbg-debug 3 dbg ;
 : dbg-info 2 dbg ;
 : dbg-warning 1 dbg ;
 : dbg-quiet 0 dbg ;
 : debug show-stack step-on ;
+
+: abort" s" .tmp space abort ;
+
+: forget-last ( -- )                            \ delete the most recent definition
+    here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
+    @ 1+ dup context ! last !                   \ resets CONTEXT and LAST
+    ;
+
+: forget ( <name> )                             \ delete <name> and any words since
+    ' dup if 
+        1- dup here !
+        1- @ 1+ dup context ! last ! 
+    else
+        drop ;
 
 \ : ?stack depth 0= if ." Stack underflow" abort then ;
 
@@ -140,7 +188,8 @@
 ( Application functions )
 
 : _fac ( r n -- r )   \ Helper function that does most of the work.
-    dup if 
+    dup 
+    if 
         tuck * swap 1 - recurse 
     else 
         drop 
@@ -148,10 +197,10 @@
 
 : fac ( n -- n! )   \ Calculates factorial of a non-negative integer. No checks for stack or calculation overflow.
     dup 
-        if 
-            1 swap _fac 
-        else 
-            drop 1 
-        then ;
+    if 
+        1 swap _fac 
+    else 
+        drop 1 
+    then ;
 
- cr cr ." Library loaded." cr
+ cr ." Library loaded." cr

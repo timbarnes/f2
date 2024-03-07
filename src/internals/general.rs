@@ -54,15 +54,22 @@ macro_rules! pop1_push1 {
     };
 }
 
+/// u_is_integer determines whether a string parses correctly as an integer
+///
 pub fn u_is_integer(s: &str) -> bool {
     s.parse::<i64>().is_ok()
 }
 
+/// u_is_float determines whether a string parses correctly as a floating point number
+///     Floating point arithmetic is currently not supported
+///
 pub fn u_is_float(s: &str) -> bool {
     s.parse::<f64>().is_ok()
 }
 
 impl TF {
+    /// Basic Forth operations on the stack.
+    ///
     pub fn f_plus(&mut self) {
         if stack_ok!(self, 2, "+") {
             let a = pop!(self);
@@ -174,6 +181,7 @@ impl TF {
         }
     }
 
+    /// @ (get) ( a -- n ) loads the value at address a onto the stack
     pub fn f_get(&mut self) {
         if stack_ok!(self, 1, "@") {
             let addr = pop!(self);
@@ -181,6 +189,8 @@ impl TF {
         }
     }
 
+    /// ! (store) ( n a -- ) stores n at address a. Generally used with variables
+    ///
     pub fn f_store(&mut self) {
         if stack_ok!(self, 2, "!") {
             let addr = pop!(self);
@@ -190,6 +200,7 @@ impl TF {
     }
 
     /// >r ( n -- ) Pops the stack, placing the value on the return stack
+    ///
     pub fn f_to_r(&mut self) {
         if stack_ok!(self, 1, ">r") {
             let value = pop!(self);
@@ -199,27 +210,32 @@ impl TF {
     }
 
     /// r> ( -- n ) Pops the return stack, pushing the value to the calculation stack
+    ///
     pub fn f_r_from(&mut self) {
         push!(self, self.data[self.return_ptr]);
         self.return_ptr += 1;
     }
 
     /// r@ ( -- n ) Gets the top value from the return stack, pushing the value to the calculation stack
+    ///
     pub fn f_r_get(&mut self) {
         push!(self, self.data[self.return_ptr]);
     }
 
     /// i ( -- n ) Pushes the current loop index to the calculation stack
+    ///
     pub fn f_i(&mut self) {
         push!(self, self.data[self.return_ptr]);
     }
 
     /// j ( -- n ) Pushes the second level (outer) loop index to the calculation stack
+    ///
     pub fn f_j(&mut self) {
         push!(self, self.data[self.return_ptr + 1]);
     }
 
     /// c@ - ( s -- c ) read a character from a string and place on the stack
+    ///
     pub fn f_c_get(&mut self) {
         if stack_ok!(self, 1, "c@") {
             let s_address = pop!(self) as usize;

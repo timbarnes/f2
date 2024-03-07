@@ -40,7 +40,8 @@ macro_rules! push {
 
 impl TF {
     /// immediate ( -- ) sets the immediate flag on the most recently defined word
-    /// Context pointer links to the most recent name field
+    ///     Context pointer links to the most recent name field
+    ///
     pub fn f_immediate(&mut self) {
         let mut str_addr = self.data[self.data[self.context_ptr] as usize] as usize;
         str_addr |= IMMEDIATE_MASK;
@@ -48,6 +49,7 @@ impl TF {
     }
 
     /// immediate? ( cfa -- T | F ) Determines if a word is immediate or not
+    ///
     pub fn f_immediate_q(&mut self) {
         if stack_ok!(self, 1, "immediate?") {
             let cfa = pop!(self) as usize;
@@ -58,6 +60,9 @@ impl TF {
         }
     }
 
+    /// abort empties the stack, resets any pending operations, and returns to the prompt
+    ///     There is a version called abort" implemented in Forth, which prints an error message
+    ///
     pub fn f_abort(&mut self) {
         // empty the stack, reset any pending operations, and return to the prompt
         self.msg
@@ -66,10 +71,10 @@ impl TF {
         self.set_abort_flag(true);
     }
 
+    /// quit is the main loop in Forth, reading from the input stream and dispatching for evaluation
+    ///     quit also issues the prompt and checks for a shutdown (exit) condition
     pub fn f_quit(&mut self) {
-        self.set_program_counter(0);
         self.f_abort();
-        print!(" ok ");
         loop {
             if self.should_exit() {
                 break;
@@ -77,10 +82,12 @@ impl TF {
                 self.set_abort_flag(false);
                 self.f_query();
                 self.f_eval(); // interpret the contents of the line
-                if self.show_stack {
-                    self.f_dot_s();
+                if self.reader.len() == 1 {
+                    if self.show_stack {
+                        self.f_dot_s();
+                    }
+                    print!(" ok ");
                 }
-                print!(" ok ");
                 self.f_flush();
             }
         }
@@ -115,8 +122,7 @@ impl TF {
         }
     }
 
-    /// EVAL ( -- ) Interprets a line of tokens from TIB
-    //             self.f_find(); // (s -- nfa, cfa, T | s F )
+    /// EVAL ( -- ) Interprets a line of tokens from the Text Input Buffer (TIB
     pub fn f_eval(&mut self) {
         loop {
             push!(self, self.data[self.pad_ptr]);
@@ -124,15 +130,15 @@ impl TF {
             self.f_parse_to(); //  ( -- b u ) get a token
             let len = pop!(self);
             if len == FALSE {
-                // u = 0 means EOL
-                pop!(self); // lose the text pointer
+                // Forth FALSE is zero, which here indicates end of line
+                pop!(self); // lose the text pointer from parse-to
                 break;
             } else {
                 // we have a token
                 if self.get_compile_mode() {
-                    self.f_d_compile(); // ( s -- )
+                    self.f_d_compile();
                 } else {
-                    self.f_d_interpret(); // ( s -- )
+                    self.f_d_interpret();
                 }
             }
         }
@@ -181,6 +187,7 @@ impl TF {
     /// $INTERPRET ( s -- ) executes a token whose string address is on the stack.
     ///            If not a word, try to convert to a number
     ///            If not a number, ABORT.
+    ///
     pub fn f_d_interpret(&mut self) {
         if stack_ok!(self, 1, "$interpret") {
             let token_addr = top!(self);
@@ -204,7 +211,8 @@ impl TF {
     }
 
     /// FIND (s -- cfa T | s F ) Search the dictionary for the token indexed through s.
-    /// If not found, return the string address so NUMBER? can look at it
+    ///     If not found, return the string address so NUMBER? can look at it
+    ///
     pub fn f_find(&mut self) {
         if stack_ok!(self, 1, "find") {
             let mut result = false;
@@ -237,6 +245,7 @@ impl TF {
 
     /// number? ( s -- n T | a F ) tests a string to see if it's a number;
     /// leaves n and flag on the stack: true if number is ok.
+    ///
     pub fn f_number_q(&mut self) {
         let buf_addr = pop!(self);
         let numtext = self.u_get_string(buf_addr as usize);
@@ -251,12 +260,16 @@ impl TF {
     }
 
     /// f_comma ( n -- ) compile a value into a definition
+    ///     Takes the top of the stack and writes it to the next free location in data space
     pub fn f_comma(&mut self) {
         self.data[self.data[self.here_ptr] as usize] = pop!(self);
         self.data[self.here_ptr] += 1;
     }
 
     /// f_literal ( n -- ) compile a literal number with it's inner interpreter code pointer
+    ///     Numbers are represented in compiled functions with two words: the LITERAL constant, and the value
+    ///     The value comes from the stack.
+    ///
     pub fn f_literal(&mut self) {
         push!(self, LITERAL);
         self.f_comma();
@@ -264,10 +277,13 @@ impl TF {
     }
 
     /// UNIQUE? (s -- s )
-    /// Checks the dictionary to see if the word pointed to is defined.
+    ///     Checks the dictionary to see if the word pointed to is defined.
+    ///     No stack impact - it's just offering a warning.
     pub fn f_q_unique(&mut self) {
+        self.f_dup();
         self.f_find();
         let result = pop!(self);
+        pop!(self);
         if result == TRUE {
             self.msg
                 .warning("unique?", "Overwriting existing definition", None::<bool>);
@@ -275,9 +291,10 @@ impl TF {
     }
 
     /// (') (TICK) <name> ( -- a | FALSE ) Searches for a word, places cfa on stack if found; otherwise FALSE
-    /// Looks for a (postfix) word in the dictionary
-    /// places it's execution token / address on the stack
-    /// Pushes 0 if not found
+    ///     Looks for a (postfix) word in the dictionary
+    ///     places it's execution token / address on the stack
+    ///     Pushes 0 if not found
+    ///
     pub fn f_tick_p(&mut self) {
         push!(self, self.data[self.pad_ptr]);
         push!(self, ' ' as i64);
@@ -295,9 +312,11 @@ impl TF {
     }
 
     /// (parse) - ( b u c -- b u delta )
-    /// Find a c-delimited token in the string buffer at b, buffer len u.
-    /// Return the pointer to the buffer, the length of the token,
-    /// and the offset from the start of the buffer to the start of the token.
+    ///     Find a c-delimited token in the string buffer at b, buffer len u.
+    ///     This is the heart of the parsing engine.
+    ///     Return the pointer to the buffer, the length of the token,
+    ///     and the offset from the start of the buffer to the start of the token.
+    ///
     pub fn f_parse_p(&mut self) {
         if stack_ok!(self, 3, "(parse)") {
             let delim = pop!(self) as u8 as char;
@@ -333,6 +352,8 @@ impl TF {
     /// need to check if TIB is empty
     /// if delimiter = 1, get the rest of the TIB
     /// Update >IN as required, and set #TIB to zero if the line has been consumed
+    /// The main text parser that reads tokens from the TIB for interactive operations
+    ///
     pub fn f_parse_to(&mut self) {
         if stack_ok!(self, 2, "parse") {
             let delim: i64 = pop!(self);
@@ -377,6 +398,10 @@ impl TF {
         }
     }
 
+    /// : (colon) starts the creation of a compiled function
+    ///     It sets compile mode, creates the name header, and writes the constant that determines how
+    ///     the word is to be processed at run time.
+    ///
     pub fn f_colon(&mut self) {
         self.set_compile_mode(true);
         self.f_create(); // gets the name and makes a new dictionary entry
@@ -385,9 +410,10 @@ impl TF {
     }
 
     /// ; terminates a definition, writing the cfa for EXIT, and resetting to interpret mode
-    ///   It has to write the exit code word, and add a back pointer
-    ///   It also has to update HERE and CONTEXT.
-    ///   Finally it switches out of compile mode
+    ///     It has to write the exit code word, and add a back pointer
+    ///     It also has to update HERE and CONTEXT.
+    ///     Finally it switches out of compile mode
+    ///
     pub fn f_semicolon(&mut self) {
         push!(self, EXIT);
         self.f_comma();
@@ -398,7 +424,8 @@ impl TF {
     }
 
     /// CREATE <name> ( -- ) makes a new dictionary entry, using a postfix name
-    /// References HERE, and assumes back pointer is in place already
+    ///     References HERE, and assumes back pointer is in place already
+    ///     create updates the three definition-related pointers: HERE, CONTEXT and LAST
     pub fn f_create(&mut self) {
         push!(self, self.data[self.pad_ptr]);
         push!(self, ' ' as i64);
@@ -416,6 +443,9 @@ impl TF {
     }
 
     /// variable <name> ( -- ) Creates a new variable in the dictionary
+    ///     This is a good candidate for shifting to Forth
+    ///     Variables use three words: a name pointer, the VARIABLE token, and the value
+    ///
     pub fn f_variable(&mut self) {
         self.f_create(); // gets a name and makes a name field in the dictionary
         push!(self, VARIABLE);
@@ -428,6 +458,8 @@ impl TF {
     }
 
     /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
+    ///     Very similar to variables, except that their value is not intended to be changed
+    ///
     pub fn f_constant(&mut self) {
         if stack_ok!(self, 1, "constant") {
             self.f_create();
@@ -441,18 +473,22 @@ impl TF {
     }
 
     /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
+    ///     Used by CREATE
+    ///
     pub fn f_smove(&mut self) {
         let dest = pop!(self) as usize;
         let length = pop!(self) as usize;
         let source = pop!(self) as usize;
         // assuming both are counted, we begin with the count byte. Length should match the source count byte
-        for i in (0..=length) {
+        for i in 0..=length {
             self.strings[dest + i] = self.strings[source + i];
         }
         push!(self, dest as i64);
     }
 
     /// see <name> ( -- ) prints the definition of a word
+    ///     Taking a postfix word name (normally used interactively), this is the Forth decompiler.
+    ///
     pub fn f_see(&mut self) {
         self.f_tick_p(); // finds the address of the word
         let cfa = pop!(self);
@@ -553,17 +589,9 @@ impl TF {
     }
     */
 
-    /// u_write_word compiles a token into the current definition at HERE
-    ///              updating HERE afterwards
-    ///              the address of the (defined) word is on the stack
-    ///              we compile a pointer to the word's inner interpreter
-    pub fn u_write_word(&mut self, word_addr: i64) {
-        if stack_ok!(self, 1, "u-interpret") {
-            self.data[self.here_ptr] = word_addr;
-        }
-    }
-
-    /// Return a string from a Forth string address
+    /// u_get_string returns a string from a Forth string address
+    ///     Assumes the source string is counted (i.e. has its length in the first byte)
+    ///
     pub fn u_get_string(&mut self, addr: usize) -> String {
         let str_addr = (addr & ADDRESS_MASK) + 1; //
         let last = str_addr + self.strings[addr] as usize;
@@ -574,7 +602,8 @@ impl TF {
         result
     }
 
-    /// Save a counted string to a Forth string address
+    /// u_set_string saves a counted string to a Forth string address
+    ///
     pub fn u_set_string(&mut self, addr: usize, string: &str) {
         let str_addr = addr & ADDRESS_MASK;
         self.strings[str_addr] = string.len() as u8 as char; // count byte
@@ -584,8 +613,9 @@ impl TF {
     }
 
     /// copy a string from a text buffer to a counted string
-    /// Typically used to copy to PAD from TIB
-    /// Can work with source strings counted or uncounted
+    ///     Typically used to copy to PAD from TIB
+    ///     Can work with source strings counted or uncounted
+    ///
     pub fn u_str_copy(&mut self, from: usize, to: usize, length: usize, counted: bool) {
         self.strings[to] = length as u8 as char; // write count byte
         let offset = if counted { 1 } else { 0 };
@@ -596,6 +626,7 @@ impl TF {
 
     /// Compare two Forth (counted) strings
     /// First byte is the length, so we'll bail quickly if they don't match
+    ///
     pub fn u_str_equal(&mut self, s_addr1: usize, s_addr2: usize) -> bool {
         for i in 0..=self.strings[s_addr1] as usize {
             if self.strings[s_addr1 + i] != self.strings[s_addr2 + i] {
@@ -606,6 +637,7 @@ impl TF {
     }
 
     /// copy a string slice into string space
+    ///    
     pub fn u_save_string(&mut self, from: &str, to: usize) {
         self.strings[to] = from.len() as u8 as char; // count byte
         for (i, c) in from.chars().enumerate() {

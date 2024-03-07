@@ -15,6 +15,8 @@ pub struct Msg {
     debug_level: DebugLevel,
 }
 
+/// A simple message processing system that allows the user to set message levels
+///
 impl Msg {
     pub fn new() -> Msg {
         Msg {
