@@ -36,6 +36,8 @@ impl Config {
         }
     }
 
+    /// process_args handles command line argument processing using the clap library
+    ///
     pub fn process_args(&mut self) -> &Config {
         // process arguments
         // let msg = Msg::new(); // Create a message handler for argument errors
@@ -81,6 +83,9 @@ impl Config {
         self
     }
 
+    /// run_forth is the main entry point that performs the cold start operations, loads library files,
+    ///     and hands off control to the main interpreter loop
+    ///
     pub fn run_forth(&mut self) {
         // create and run the interpreter
         // return when finished

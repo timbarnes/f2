@@ -6,10 +6,12 @@
 use crate::engine::{BUILTIN_MASK, FALSE, STR_START, TF, TIB_START, VARIABLE};
 use crate::engine::{PAD_START, TMP_START};
 
+// The mechanism for storing and calling function pointers
 pub trait BuiltinCall {
     fn call(&mut self);
 }
 
+// The internal format for builtins: a name, code pointer, and documentation string for use by SEE
 pub struct BuiltInFn {
     pub name: String,
     pub code: for<'a> fn(&'a mut TF),
@@ -27,6 +29,10 @@ impl BuiltInFn {
 }
 
 impl TF {
+    /// u_insert_variables builds the initial set of variables that are visible in Forth and Rust
+    ///
+    /// They use pointers stored in the main interpreter struct, but the values are stored in Forth user space
+    ///
     pub fn u_insert_variables(&mut self) {
         // install system variables in data area
         // hand craft S-HERE (free string pointer) so write_string() can work
@@ -78,7 +84,8 @@ impl TF {
         self.data[self.abort_ptr] = FALSE;
     }
 
-    /// Insert Forth code into the dictionary
+    /// Insert Forth code into the dictionary by causing the reader to interpret a string
+    ///
     pub fn u_insert_code(&mut self) {
         // self.u_interpret("2 2 + .");
     }
@@ -97,7 +104,7 @@ impl TF {
         result_ptr
     }
 
-    /// make-variable Create a variable, returning the address of the variable's value
+    /// make-variable creates a variable, returning the address of the variable's value
     fn u_make_variable(&mut self, name: &str) -> usize {
         let code_ptr = self.u_make_word(&name, &[VARIABLE, 0]); // install the name
         code_ptr + 1 // the location of the variable's value
@@ -110,10 +117,11 @@ impl TF {
        }
     */
     /// u_make_word Install a new word with provided name and arguments
-    /// back link is already in place
-    /// place it HERE
-    /// update HERE and LAST
-    /// return pointer to first parameter field - the code field pointer or cfa
+    ///     back link is already in place
+    ///     place it HERE
+    ///     update HERE and LAST
+    ///     return pointer to first parameter field - the code field pointer or cfa
+    ///
     fn u_make_word(&mut self, name: &str, args: &[i64]) -> usize {
         let back = self.data[self.here_ptr] as usize - 1; // the top-of-stack back pointer's location
         let mut ptr = back + 1;
@@ -129,6 +137,12 @@ impl TF {
         back + 2 // address of first parameter field
     }
 
+    /// u_add_builtin creates a builtin record with function pointer etc. and links it to a word in the dictionary
+    ///     The dual representation is used because of strong typing - it would be great to store the
+    ///     function pointer directly in user space, but it would require ugly casting (if it's even possible).
+    ///     Also, calling a function via an address in data space is going to cause a crash if the data space
+    ///     pointer is incorrect.
+    ///
     fn u_add_builtin(&mut self, name: &str, code: for<'a> fn(&'a mut TF), doc: &str) {
         self.builtins
             .push(BuiltInFn::new(name.to_owned(), code, doc.to_string()));
@@ -137,8 +151,9 @@ impl TF {
         self.u_make_word(name, &[cfa as i64]);
     }
 
+    /// Set up all the words that are implemented in Rust
+    ///     Each one gets a standard dictionary reference, and a slot in the builtins data structure.
     pub fn add_builtins(&mut self) {
-        // Inner interpreters occupy the addresses lower than 100
         self.u_add_builtin(
             "_builtin",
             TF::i_builtin,
@@ -191,11 +206,7 @@ impl TF {
             "_next opcode -- end of word - continue to the next one",
         );
         // Start of normal functions
-        self.u_add_builtin(
-            "f_marker",
-            TF::f_marker,
-            "marker <name> ( -- ) Places a named marker in the dictionary, to be used by FORGET",
-        );
+
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");

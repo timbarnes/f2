@@ -74,7 +74,7 @@ impl TF {
     ///    [ index of i_definition ] [ sequence of compiled words ]
     ///
     ///    A program counter is used to step through the entries in the definition.
-    ///    Each entry is one or two cells, and may be an inner interpreter code, with or without an argument,
+    ///    Each entry is one or two cells, and may be an inner interpreter code (opcode), with or without an argument,
     ///    or a defined word. For space efficiency, builtin words and user defined (colon) words are
     ///    represented by the cfa of their definition, overlaid with a flag. The interpreter calls the builtin code.
     ///    For nested definitions, the inner interpreter pushes the program counter (PC) and continues.
@@ -82,6 +82,10 @@ impl TF {
     ///
     ///    Most data is represented by an address, so self.data[pc] is the cfa of the word referenced.
     ///    Each operation advances the pc to the next token.
+    ///
+    ///    cfa means the code field address (the address in data space of the opcode to be executed)
+    ///    nfa means the name field address (a pointer to the string naming the word)
+    ///    xt  means the execution token - a value that tells the engine what to do
     ///
     pub fn i_definition(&mut self) {
         let mut pc = pop!(self) as usize; // This is the start of the definition: first word after the inner interpreter opcode
@@ -185,24 +189,26 @@ impl TF {
     }
 
     /// Unconditional branch, used by condition and loop structures
+    ///
     pub fn i_branch(&mut self) {}
 
     /// Branch if zero, used by condition and loop structures
+    ///
     pub fn i_branch0(&mut self) {}
 
     /// Force an abort
+    ///
     pub fn i_abort(&mut self) {}
 
-    /// Leave the current word *** doesn't work, because there's no way to reset the program counter from here
+    /// Leave the current word
+    ///     *** doesn't work, because there's no way to reset the program counter from here
+    ///
     pub fn i_exit(&mut self) {
         self.f_r_from();
         // pc = pop!(self) as usize;
     }
 
     /// Continue to the next word
+    ///
     pub fn i_next(&mut self) {}
-
-    /// f_marker <name> ( -- ) sets a location for FORGET
-    ///     It creates a definition called <name> that has the effect of resetting HERE and CONTEXT       
-    pub fn f_marker(&mut self) {}
 }

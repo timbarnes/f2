@@ -108,6 +108,11 @@ FALSE 55 0< test-single
 ."        Constants" cr
 12 12 constant months months test-single \ a constant with the value 12
 
+."        Engine" cr
+264 s" does-not-exist" drop ?unique test-single
+264 s" *" drop ?unique test-single
+264 s" min" drop ?unique test-single
+
 ."        Application tests" cr
 1 0 fac test-single
 1 1 fac test-single

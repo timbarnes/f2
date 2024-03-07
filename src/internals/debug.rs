@@ -31,20 +31,27 @@ macro_rules! push {
 }
 
 impl TF {
+    /// show-stack ( -- ) turns on stack printing at the time the prompt is issued
+    ///
     pub fn f_show_stack(&mut self) {
         self.show_stack = true;
     }
 
+    /// hide-stack ( -- ) turns off stack printing at the time the prompt is issued
+    ///
     pub fn f_hide_stack(&mut self) {
         self.show_stack = false;
     }
 
     /// DEPTH - print the number of items on the stack
+    ///
     pub fn f_stack_depth(&mut self) {
         let depth = STACK_START - self.stack_ptr;
         push!(self, depth as i64);
     }
 
+    /// dbg ( n -- ) sets the current debug level used by the message module
+    ///
     pub fn f_dbg(&mut self) {
         if stack_ok!(self, 1, "dbg") {
             match pop!(self) {
@@ -60,6 +67,13 @@ impl TF {
         println!("DebugLevel is {:?}", self.msg.get_level());
     }
 
+    /// u_step provides the step / trace functionality
+    ///     called from inside the definition interpreter
+    ///     it is driven by the STEPPER variable:
+    ///     STEPPER = 0 => stepping is off
+    ///     STEPPER = -1 => single step
+    ///     STEPPER = 1 => trace mode, printing the stack and current word before each operation
+    ///
     pub fn u_step(&mut self, address: usize, is_builtin: bool) {
         let mode = self.data[self.stepper_ptr];
         let mut c = '\n';

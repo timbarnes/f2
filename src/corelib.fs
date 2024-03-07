@@ -4,6 +4,18 @@
 
 1 dbg \ set debuglevel to warnings and errors
 
+\ here points to the slot where the new back pointer goes
+\ last and context point to the previous word's name field address
+
+: .close (  -- )                      \ terminate a definition, writing a back pointer and updating context, last, and here
+        last @ 1 - here !             \ write the new back pointer
+        here @ dup last ! context !   \ update LAST and CONTEXT
+        here @ 1 + here !                  \ increment HERE over the back pointer
+        ;
+
+: const ( n -- ) create 1002 , ,      \ v constant <name> creates a constant with value v
+    .close ;          
+
 0 constant FALSE
 -1 constant TRUE
 
@@ -129,7 +141,8 @@
     here @ 1- @                                 \ Get the starting point: the top back pointer
     begin                                       \ loops through the words in the dictionary
         .word dup not                           \ print a word and test the next pointer
-    until ;   
+    until 
+        drop ;   
 
 \ Stepper controls
 : step-on -1 stepper ! ;
@@ -145,10 +158,17 @@
 
 : abort" s" .tmp space abort ;
 
-: delete ( -- )                                 \ delete the most recent definition
+: forget-last ( -- )                            \ delete the most recent definition
     here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
     @ 1+ dup context ! last !                   \ resets CONTEXT and LAST
     ;
+
+: forget ( <name> )                             \ delete <name> and any words since
+    ' dup if 
+        1- dup here !
+        1- @ 1+ dup context ! last ! 
+    else
+        drop ;
 
 \ : ?stack depth 0= if ." Stack underflow" abort then ;
 

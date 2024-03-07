@@ -97,6 +97,7 @@ impl TF {
     }
 
     /// QUERY ( -- ) Load a new line of text into the TIB
+    ///     
     pub fn f_query(&mut self) {
         push!(self, self.data[self.tib_ptr]);
         push!(self, BUF_SIZE as i64 - 1);
@@ -106,8 +107,11 @@ impl TF {
         pop!(self); // we don't need the address
     }
 
-    // output
+    // output functions
 
+    /// emit ( c -- ) takes a character from the stack and prints it.
+    ///     emit will only output printable characters; others are consumed but not output.
+    ///
     pub fn f_emit(&mut self) {
         if stack_ok!(self, 1, "emit") {
             let c = pop!(self);
@@ -119,10 +123,18 @@ impl TF {
         }
     }
 
+    /// flush ( -- ) Push any characters in Rust's output buffer out.
+    ///     By default printed characters are buffered until a newline.
+    ///     This forces them out sooner
+    ///
     pub fn f_flush(&mut self) {
         io::stdout().flush().unwrap();
     }
 
+    /// . (dot) is the standard Forth word to output a number from the top of the stack
+    ///     A more correct implementation would output using the radix stored in BASE
+    ///     This is still TBD in this implementation
+    ///
     pub fn f_dot(&mut self) {
         if stack_ok!(self, 1, ".") {
             let a = pop!(self);
@@ -130,6 +142,8 @@ impl TF {
         }
     }
 
+    /// .s ( -- ) prints a copy of the computation stack
+    ///
     pub fn f_dot_s(&mut self) {
         print!("[ ");
         for i in (self.stack_ptr..STACK_START).rev() {
@@ -138,11 +152,16 @@ impl TF {
         print!("] ");
     }
 
+    /// cr ( -- ) prints a newline. Only required because EMIT will not output control characters
+    ///
     pub fn f_cr(&mut self) {
         println!("");
     }
 
     /// s" ( -- ) get a string and place it in TMP
+    ///     TMP is a buffer used for staging strings
+    ///     PAD is another string buffer, but it is used for token parsing
+    ///
     pub fn f_s_quote(&mut self) {
         push!(self, self.data[self.tmp_ptr]);
         push!(self, '"' as i64);
@@ -153,9 +172,14 @@ impl TF {
 
     // file i/o
 
+    /// r/w ( -- ) sets the file mode for file operations
+    ///
     pub fn f_r_w(&mut self) {
         self.file_mode = FileMode::ReadWrite;
     }
+
+    /// r/w ( -- ) sets the file mode for file operations
+    ///
     pub fn f_r_o(&mut self) {
         self.file_mode = FileMode::ReadOnly;
     }

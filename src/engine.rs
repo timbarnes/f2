@@ -40,6 +40,18 @@ pub const ABORT: i64 = 1008;
 pub const EXIT: i64 = 1009;
 pub const NEXT: i64 = 1010;
 
+/// The primary data structure for the Forth engine
+///
+///     Forth's main data structure is a fixed array of integers (overloaded with characters and unsigned values).
+///     This holds all the program data - words, variables, constants, stack etc. used by Forth
+///     Strings are kept in a separate array, which is simpler than packing ASCII characters into 64 bit words
+///     The Rust side of the engine keeps track of some variables with names following a *_ptr pattern.
+///     This allows these values to be easily used by both Rust and Forth.
+///     A small reader module manages input from files and stdin. Unfortunatly there is no easy way to provide
+///     unbuffered keystroke input without a special library.
+///     A simple messaging system provides warnings and errors. Ultimately these should be restricted to Rust error conditions,
+///     while Forth should use it's own methods to display and process errors and warnings.
+///
 //#[derive(Debug)]
 pub struct TF {
     pub data: [i64; DATA_SIZE],
@@ -121,6 +133,7 @@ impl TF {
         }
     }
 
+    /// cold_start is where the interpreter begins, installing some variables and the builtin functions.
     pub fn cold_start(&mut self) {
         self.u_insert_variables();
         self.add_builtins();
@@ -129,6 +142,7 @@ impl TF {
     }
 
     /// get_var returns the value of a defined variable from its pointer address
+    ///
     pub fn get_var(&mut self, addr: usize) -> i64 {
         self.data[addr]
     }
@@ -138,7 +152,10 @@ impl TF {
         self.data[addr] = val;
     }
 
-    /// get_compile_mode *** needs to work with 'EVAL contents
+    /// get_compile_mode determines whether or not compile mode is active
+    ///     Traditionally, a variable called 'EVAL stores the compile or the interpret functions
+    ///     In this version, the STATE variable is used directly.
+    ///
     pub fn get_compile_mode(&mut self) -> bool {
         if self.get_var(self.state_ptr) == FALSE {
             false
@@ -147,14 +164,20 @@ impl TF {
         }
     }
 
-    /// get_compile_mode *** needs to work with 'EVAL contents
+    /// set_compile_mode turns on compilation mode
+    ///
     pub fn set_compile_mode(&mut self, value: bool) {
         self.set_var(self.state_ptr, if value { -1 } else { 0 });
     }
 
+    /// set_abort_flag allows the abort condition to be made globally visible
+    ///
     pub fn set_abort_flag(&mut self, v: bool) {
         self.set_var(self.abort_ptr, if v { -1 } else { 0 });
     }
+
+    /// get_abort_flag returns the current value of the flag
+    ///
     pub fn get_abort_flag(&mut self) -> bool {
         let val = self.get_var(self.abort_ptr);
         if val == FALSE {
@@ -164,15 +187,15 @@ impl TF {
         }
     }
 
-    pub fn set_program_counter(&mut self, val: usize) {
-        self.set_var(self.pc_ptr, val as i64);
-    }
-
+    /// should_exit determines whether or not the user has executed BYE
+    ///
     pub fn should_exit(&self) -> bool {
         // Method to determine if we should exit
         self.exit_flag
     }
 
+    // pack_string compresses strings to fit into 64 bit words
+    //     Not used by the current implementation because strings are in their own data structure
     /* pub fn pack_string(&self, input: &str) -> Vec<usize> {
         // tries to pack a string
         let mut output = Vec::new();
