@@ -411,22 +411,6 @@ impl TF {
             TF::f_parse_p,
             "(parse) - b u c -- b u delta ) return the location of a delimited token in string space",
         );
-        /*        self.u_add_builtin(
-                   "s\"",
-                   TF::f_s_quote,
-                   "s\" Place the following string in the TMP string buffer",
-               );
-        */
-        self.u_add_builtin(
-            "variable",
-            TF::f_variable,
-            "variable <name> creates a new variable in the dictionary",
-        );
-        self.u_add_builtin(
-            "constant",
-            TF::f_constant,
-            "constant <name> ( n -- ) creates and initializes a new constant in the dictionary",
-        );
         self.u_add_builtin(
             "create",
             TF::f_create,
