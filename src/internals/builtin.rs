@@ -154,49 +154,6 @@ impl TF {
     /// Set up all the words that are implemented in Rust
     ///     Each one gets a standard dictionary reference, and a slot in the builtins data structure.
     pub fn add_builtins(&mut self) {
-        self.u_add_builtin(
-            "_builtin",
-            TF::i_builtin,
-            "_builtin  opcode -- executes the builtin on the stack",
-        );
-        self.u_add_builtin(
-            "_literal",
-            TF::i_literal,
-            "_literal  opcode -- loads a number on the stack",
-        );
-        self.u_add_builtin(
-            "_stringlit",
-            TF::i_strlit,
-            "_stringlit  opcode -- loads a string pointer on the stack",
-        );
-        self.u_add_builtin(
-            "_definition",
-            TF::i_builtin,
-            "_definition  opcode -- executes a colon definition",
-        );
-        self.u_add_builtin(
-            "_branch",
-            TF::i_branch,
-            "_branch  opcode -- executes an unconditional branch",
-        );
-        self.u_add_builtin(
-            "_branch0",
-            TF::i_branch0,
-            "_branch0 opcode -- executes a branch if zero",
-        );
-        self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
-        self.u_add_builtin(
-            "exit",
-            TF::i_exit,
-            "exit ( -- ) returns from the current definition",
-        );
-        self.u_add_builtin(
-            "_next",
-            TF::i_next,
-            "_next opcode -- end of word - continue to the next one",
-        );
-        // Start of normal functions
-
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");

@@ -76,7 +76,7 @@ impl TF {
     ///
     pub fn u_step(&mut self, address: usize, is_builtin: bool) {
         let mode = self.data[self.stepper_ptr];
-        let mut c = '\n';
+        let mut c;
         match mode {
             0 => return, // stepper is off
             -1 => {
@@ -108,7 +108,7 @@ impl TF {
                 }
             }
             'c' => self.data[self.stepper_ptr] = FALSE,
-            _ => println!("Stepper: 's' for show, 'c' for continue."),
+            '\n' | _ => println!("Stepper: 's' for show, 'c' for continue."),
         }
     }
 }

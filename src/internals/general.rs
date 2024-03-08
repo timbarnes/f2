@@ -60,13 +60,6 @@ pub fn u_is_integer(s: &str) -> bool {
     s.parse::<i64>().is_ok()
 }
 
-/// u_is_float determines whether a string parses correctly as a floating point number
-///     Floating point arithmetic is currently not supported
-///
-pub fn u_is_float(s: &str) -> bool {
-    s.parse::<f64>().is_ok()
-}
-
 impl TF {
     /// Basic Forth operations on the stack.
     ///

@@ -15,11 +15,6 @@ macro_rules! pop {
         r
     }};
 }
-macro_rules! top {
-    ($self:ident) => {{
-        $self.data[$self.stack_ptr]
-    }};
-}
 macro_rules! push {
     ($self:ident, $val:expr) => {
         $self.stack_ptr -= 1;
