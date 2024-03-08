@@ -160,16 +160,6 @@ impl TF {
             "_builtin  opcode -- executes the builtin on the stack",
         );
         self.u_add_builtin(
-            "_variable",
-            TF::i_variable,
-            "variable  opcode -- loads a variable's address on the stack",
-        );
-        self.u_add_builtin(
-            "_constant",
-            TF::i_constant,
-            "_constant  opcode -- loads a constant's value on the stack",
-        );
-        self.u_add_builtin(
             "_literal",
             TF::i_literal,
             "_literal  opcode -- loads a number on the stack",
@@ -247,12 +237,11 @@ impl TF {
             TF::f_0less,
             "( j k -- j/k ) If j < 0 push true else false",
         );
-        /*         self.u_add_builtin(
+        self.u_add_builtin(
             ".s",
             TF::f_dot_s,
             ".s ( -- ) Print the contents of the calculation stack",
-        ); */
-        self.u_add_builtin("cr", TF::f_cr, "cr ( -- ) Print a newline");
+        );
         self.u_add_builtin(
             "show-stack",
             TF::f_show_stack,
@@ -444,7 +433,7 @@ impl TF {
             "create <name> ( -- ) creates a name field in the dictionary",
         );
         self.u_add_builtin(
-            "pack$",
+            "s-move",
             TF::f_smove,
             "pack$ ( src n dest -- ) copies a counted string to a new location",
         );

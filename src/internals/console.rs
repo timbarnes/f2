@@ -1,5 +1,5 @@
 /// Input-output words
-use crate::engine::{FileMode, ADDRESS_MASK, BUF_SIZE, FALSE, STACK_START, TF, TRUE};
+use crate::engine::{FileMode, BUF_SIZE, FALSE, STACK_START, TF, TRUE};
 use crate::messages::Msg;
 use crate::reader::Reader;
 use std::cmp::min;
@@ -115,7 +115,8 @@ impl TF {
     pub fn f_emit(&mut self) {
         if stack_ok!(self, 1, "emit") {
             let c = pop!(self);
-            if (0x20..=0x7f).contains(&c) {
+            if c == 10 || (0x20..=0x7f).contains(&c) {
+                // newline or printable
                 print!("{}", c as u8 as char);
             } else {
                 self.msg.error("EMIT", "Arg out of range", Some(c));
@@ -150,24 +151,6 @@ impl TF {
             print!("{} ", self.data[i]);
         }
         print!("] ");
-    }
-
-    /// cr ( -- ) prints a newline. Only required because EMIT will not output control characters
-    ///
-    pub fn f_cr(&mut self) {
-        println!("");
-    }
-
-    /// s" ( -- ) get a string and place it in TMP
-    ///     TMP is a buffer used for staging strings
-    ///     PAD is another string buffer, but it is used for token parsing
-    ///
-    pub fn f_s_quote(&mut self) {
-        push!(self, self.data[self.tmp_ptr]);
-        push!(self, '"' as i64);
-        self.f_parse_to();
-        pop!(self);
-        pop!(self);
     }
 
     // file i/o

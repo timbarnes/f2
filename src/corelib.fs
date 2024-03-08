@@ -7,14 +7,17 @@
 \ here points to the slot where the new back pointer goes
 \ last and context point to the previous word's name field address
 
-: .close (  -- )                      \ terminate a definition, writing a back pointer and updating context, last, and here
-        last @ 1 - here !             \ write the new back pointer
-        here @ dup last ! context !   \ update LAST and CONTEXT
-        here @ 1 + here !                  \ increment HERE over the back pointer
+: (close) ( -- )                      \ terminate a definition, writing a back pointer and updating context, last, and here
+        last @ 1 - here @ !           \ write the new back pointer
+        here @ 1 + here !             \ update HERE 
+        last @ context !              \ update CONTEXT
         ;
 
-: const ( n -- ) create 1002 , ,      \ v constant <name> creates a constant with value v
-    .close ;          
+: constant ( n -- ) create 1002 , ,      \ v constant <name> creates a constant with value v
+    (close) ;  
+
+: variable ( -- ) create 1001 , 0 ,    \ variable <name> creates a variable, initialized to zero
+    (close) ;        
 
 0 constant FALSE
 -1 constant TRUE
@@ -34,6 +37,7 @@
 72057594037927935 constant ADDRESS_MASK                      \ wipes any flags
 
 \ ASCII symbols that are useful for text processing
+10 constant '\n'
 32 constant BL
 34 constant '"'
 39 constant '''
@@ -108,6 +112,7 @@
 
 : space ( -- ) BL emit ;
 : spaces ( n -- ) for space next ;
+: cr ( -- ) '\n' emit ;
 
 : type ( s -- )                                 \ Print from the string pointer on the stack
     ADDRESS_MASK and                            \ Wipe out any flags
