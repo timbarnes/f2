@@ -71,12 +71,16 @@ variable test-num 0 test-num !
 0 FALSE test-single
 
 ."         Comparisons" cr
-FALSE 1 3 > test-single ." >"
+FALSE 1 3 > test-single
 TRUE 3 1 > test-single
+FALSE 3 3 > test-single
 FALSE 5 2 < test-single
 TRUE 2 5 < test-single
+FALSE 2 2 < test-single
 FALSE -5 0= test-single
 TRUE 0 0= test-single
+FALSE 0 0<> test-single
+TRUE 5 0<> test-single
 TRUE -22 0< test-single
 FALSE 0 0< test-single
 FALSE 55 0< test-single
@@ -120,3 +124,5 @@ FALSE 55 0< test-single
 479001600 12 fac test-single 
 
 test-results  \ Checks to see if all tests passed. Errors, if any, are left on the stack.
+
+\ forget test-num

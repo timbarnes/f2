@@ -17,7 +17,11 @@
     (close) ;  
 
 : variable ( -- ) create 1001 , 0 ,    \ variable <name> creates a variable, initialized to zero
-    (close) ;        
+    (close) ;  
+
+: +! ( n addr -- ) dup @ rot + swap ! ;
+: ? ( addr -- ) @ . ;
+      
 
 0 constant FALSE
 -1 constant TRUE
@@ -104,45 +108,67 @@
 : pop ( a -- ) drop ;
 : 2dup ( a b -- a b a b ) over over ;
 : ?dup dup 0= if dup else then ;
-: > < if false else true then ;
+: > swap < ;
 : <> ( n -- n ) = 0= ;
+: 0> 0 > ;
+: 0<> 0= 0= ;
 : min ( m n -- m | n ) 2dup < if drop else nip then ;
 : max ( m n -- m | n ) 2dup > if drop else nip then ;
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
 
 : space ( -- ) BL emit ;
-: spaces ( n -- ) for space next ;
+: spaces ( n -- ) dup 0> if for space next else drop then ;
 : cr ( -- ) '\n' emit ;
+
+: tell ( s l -- )                               \ like type, but length is provided: useful for substrings
+    swap ADDRESS_MASK and
+    swap 2dup + rot drop swap 
+    for 
+        dup i - c@ emit 
+    next 
+        drop ;
 
 : type ( s -- )                                 \ Print from the string pointer on the stack
     ADDRESS_MASK and                            \ Wipe out any flags
-    dup c@ dup rot + swap                       \ Get the length to drive the for loop
-    for 
-        dup i - 1+ c@ emit                      \ Output one character
-    next 
-        drop BL emit ;                          \ Emit a final space
+    dup c@ swap 1+ swap                          \ Get the length to drive the for loop
+    tell ;
 
-: tell ( s l -- )                               \ like type, but length is provided: useful for substrings
-    swap ADDRESS_MASK and swap 
-    for 
-        dup i - 1+ c@ emit 
-    next 
-        drop BL emit ;
+: rtell ( s l w -- )                             \ Right justify a string of length l in a field of w characters
+    over - 1 max 
+    spaces tell ;
+
+: ltell ( s l w -- )
+    2dup swap -
+    nip rot rot
+    tell spaces ;
+
+: rtype ( s w -- )
+    swap ADDRESS_MASK and dup c@ 
+    rot swap - spaces type ;
+
+: ltype swap ADDRESS_MASK and dup c@ 
+    rot swap - swap type spaces ;
 
 : .tmp tmp @ type ;                             \ Print the tmp buffer
 : .pad pad @ type ;                             \ Print the pad buffer
-: ." state @                                    \ Compile or print a string
+: ."  ( -- ) state @                                    \ Compile or print a string
     if
         STRLIT ,                                \ Compilation section
         s" drop s-create ,
         ['] type ,
     else
-        s" drop type                            \ Print section
+        s" drop type                            \ Execution (print) section
     then ; immediate
 
 \ Implementation of word
-: .word ( bp -- bp ) dup dup '[' emit . 1+ @ type ']' emit space @ ;             \ prints a word name, given the preceding back pointer
-: words ( -- ) 
+variable _word-counter
+: .word ( bp -- bp )                            \ prints a word name, given the preceding back pointer
+    dup dup . 1+ @ 12 ltype 
+    1 _word-counter +! 
+    _word-counter @ 6 mod
+    if space else cr then @ ;          
+: words ( -- )
+    0 _word-counter !
     here @ 1- @                                 \ Get the starting point: the top back pointer
     begin                                       \ loops through the words in the dictionary
         .word dup not                           \ print a word and test the next pointer
@@ -161,7 +187,7 @@
 : dbg-quiet 0 dbg ;
 : debug show-stack step-on ;
 
-: abort" s" .tmp space abort ;
+\ : abort" ." drop type space abort ;
 
 : forget-last ( -- )                            \ delete the most recent definition
     here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
@@ -175,11 +201,7 @@
     else
         drop ;
 
-\ : ?stack depth 0= if ." Stack underflow" abort then ;
-
-
-: +! ( n addr -- ) dup @ rot + swap ! ;
-: ? ( addr -- ) @ . ;
+\ : ?stack depth 0= if abort" Stack underflow" then ;
 
 : kkey ( -- c ) >in @ c@ 1 >in +! ;                     \ Get the next character from the TIB
 : ?key ( -- c T | F )                                   \ If there's a character in TIB, push it and TRUE
@@ -208,4 +230,5 @@
         drop 1 
     then ;
 
- cr ." Library loaded." cr
+clear
+\ cr ." Library loaded." cr
