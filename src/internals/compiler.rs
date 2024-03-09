@@ -175,7 +175,7 @@ impl TF {
                     self.f_literal(); // compile the literal
                 } else {
                     pop!(self); // lose the failed number
-                    let word = &self.u_get_string(self.pad_ptr);
+                    let word = &self.u_get_string(self.data[self.pad_ptr] as usize);
                     self.msg
                         .warning("$interpret", "token not recognized", Some(word));
                     self.f_abort();
