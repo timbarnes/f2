@@ -132,17 +132,6 @@ impl TF {
         io::stdout().flush().unwrap();
     }
 
-    /// . (dot) is the standard Forth word to output a number from the top of the stack
-    ///     A more correct implementation would output using the radix stored in BASE
-    ///     This is still TBD in this implementation
-    ///
-    pub fn f_dot(&mut self) {
-        if stack_ok!(self, 1, ".") {
-            let a = pop!(self);
-            print!("{a} ");
-        }
-    }
-
     /// .s ( -- ) prints a copy of the computation stack
     ///
     pub fn f_dot_s(&mut self) {

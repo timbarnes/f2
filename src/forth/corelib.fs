@@ -19,9 +19,6 @@
 : variable ( -- ) create 100001 , 0 ,    \ variable <name> creates a variable, initialized to zero
     (close) ;  
 
-: +! ( n addr -- ) dup @ rot + swap ! ;
-: ? ( addr -- ) @ . ;
-
 : decimal 10 base ! ;
 : hex 16 base ! ;
 
@@ -212,8 +209,13 @@
         '-' emit
     then
     u. ;
+
+: . 0 .r space ;
+
+: +! ( n addr -- ) dup @ rot + swap ! ;
+: ? ( addr -- ) @ . ;
+
 \ Implementation of word
-0 constant zero
 variable word-counter
 
 : .word ( bp -- bp )                            \ prints a word name, given the preceding back pointer
@@ -250,9 +252,10 @@ variable word-counter
     ;
 
 : forget ( <name> )                             \ delete <name> and any words since
-    ' dup if 
-        1- dup here !
-        1- @ 1+ dup context ! last ! 
+    ' dup  
+    if 
+        1- dup dup here ! @ s-here !            \ move to nfa and set HERE and S-HERE
+        1- @ 1+ dup context ! last !            \ go back a link and set CONTEXT and LAST
     else
         drop ;
 

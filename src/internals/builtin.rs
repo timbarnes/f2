@@ -165,11 +165,6 @@ impl TF {
             "( j k -- j/k ) If j < k push true else false",
         );
         self.u_add_builtin(
-            ".",
-            TF::f_dot,
-            ". ( n -- ) Pop the top of the stack and print it, followed by a space",
-        );
-        self.u_add_builtin(
             "true",
             TF::f_true,
             "true ( -- -1 ) Push the canonical true value on the stack.",
