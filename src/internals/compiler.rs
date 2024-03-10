@@ -306,9 +306,10 @@ impl TF {
             let mut msg = self.u_get_string(self.data[self.pad_ptr] as usize);
             msg = format!("Word not found: {} ", msg);
             self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
-            // self.f_type(); // a warning message *** replace with a call to TELL
+            pop!(self);
             push!(self, FALSE);
         }
+        // pop!(self);
     }
 
     /// (parse) - ( b u c -- b u delta )
