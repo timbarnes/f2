@@ -100,7 +100,6 @@ impl TF {
                 data: [0; DATA_SIZE],
                 strings: [' '; STRING_SIZE],
                 builtins: Vec::new(),
-                //return_stack: Vec::new(),
                 here_ptr: WORD_START,
                 stack_ptr: STACK_START,
                 return_ptr: RET_START,

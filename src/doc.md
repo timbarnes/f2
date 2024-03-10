@@ -1,17 +1,23 @@
 # Documentation for built-in functions.
 
-This is not intended to be full documentation, but a reference to the stack behavior and basic functions of some important words to help with debugging.
+This is not intended to be full documentation, but a reference to the stack behavior and basic functions of some important words to help with debugging. f2 supports most of the standard stack and arithmetic words.
 
 ## System Variables
 
 | WORD | Notes                                                                                                           |
 | ---- | --------------------------------------------------------------------------------------------------------------- |
-| 'TIB | The address of the text input buffer. TIB is not counted, but the first byte is reserved and not used for text. |
-| #TIB | The length of the line currently in TIB                                                                         |
-| >IN  | Pointer to the first unconsumed character in TIB                                                                |
-| PAD  | Address of the temporary string buffer PAD. PAD is a counted string                                             |
-| HERE | The location of the top of the dictionary, where new elements will be added                                     |
-| BASE | Radix for numberic I/O. Defaults to 10.                                                                         |
+| 'tib | The address of the text input buffer. TIB is not counted, but the first byte is reserved and not used for text. |
+| #tib | The length of the line currently in TIB.                                                                         |
+| >in  | Pointer to the first unconsumed character in TIB.                                                                |
+| pad  | Address of the temporary string buffer PAD. PAD is a counted string, used by the parser to hold the current token during interpretation.                                           |
+tmp | Address of a second temporary string buffer used by string functions to stage new strings.
+| here | The location of the top of the dictionary, where new elements will be added.                                   |
+s-here | The location of the top of string space, where new strings will be added.
+context | Holds the address of the most recent word's name field
+last | Holds the address of the name field of the word being defined.
+| base | Radix for numberic I/O. Defaults to 10.    
+state | Set to TRUE if compile mode is active, otherwise FALSE.
+stepper | Controls the stepper / debugger. 0 => off, 1 => trace, -1 => single step.                                                                     |
 
 ## I/O
 
@@ -21,11 +27,21 @@ This is not intended to be full documentation, but a reference to the stack beha
 | accept        | ( b u -- b u ) | Read up to u characters, placing them in b. Return the number of characters actually read. |
 | emit          | ( c -- )       | Print a character, if it's in the printable range from space to 0x7F.                      |
 | flush         | ( -- )         | Force the output buffer to be flushed to the terminal.                                     |
+space | ( -- ) | Prints a single space.
+spaces | ( u -- ) | Prints u spaces.
 | .s            | ( -- )         | Print the contents of the stack.                                                           |
 | .             | ( v -- )       | Print the top of the stack as an integer.                                                  |
+u. | ( u -- ) | Print the top of the stack as an unsigned value
+u.r | ( u w -- ) | Print unsigned u right-justified in a field w wide. If w is too small, print the full number anyway
+.r | ( n w -- ) | Print integer n right-justified in a field w wide. If w is too small, print the full number anyway
 | cr            | ( -- )         | Print a newline.                                                                           |
 | s" \<string>" | ( -- )         | Print the inline string                                                                    |
 | type          | ( s -- )       | Print a string, using the top of stack as a pointer to the string.                         |
+ltype | ( s w -- ) | Print a string left justified in a field w characters wide. If w is too small, print the entire string anyway.
+rtype | ( s w -- ) | Print a string right justified in a field w characters wide. If w is too small, print the entire string anyway.
+tell | ( s u -- ) | Print the string at s, of length u
+ltell | ( s u w -- ) | Print a string of length u left justified in a field w characters wide. If w is too small, print the entire string anyway.
+rtell | ( s u w -- ) | Print a string of length u right justified in a field w characters wide. If w is too small, print the entire string anyway.
 | r/w           | ( -- )         | Set file mode to read/write, for file operations.                                          |
 | r/o           | ( -- )         | Set file mode to read only, for file operations.                                           |
 
@@ -33,6 +49,9 @@ This is not intended to be full documentation, but a reference to the stack beha
 
 | WORD       | SIGNATURE                 | NOTES                                                                                                                                                                                                                                 |
 | ---------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+words |  ( -- ) | Prints a list of all dictionary entries, whether words, builtins, variables or constants. Each word is preceded by its address in the dictionary for debugging purposes.
+abort | ( -- ) | Ends execution of the current word, clears the stack, and returns to the interpreter's top level
+abort" \<message>" | ( -- ) | Print the message and call abort
 | quit       | ( -- )                    | Interpreter outer loop: gets a line of input, processes it. Calls `query` and `eval` to do the work.                                                                                                                                  |
 | eval       | ( -- )                    | Interprets a line of input from the `TIB`. Exits when the line is finished, or if `abort` is called.                                                                                                                                  |
 | text       | ( -- b u )                | Gets a space-delimited token from the `TIB`, starting at offset `>IN`. Places it in `PAD`. Returns the address of `PAD` and the number of characters in the token, or 0 if no token could be ready (typically end of line condition). |
@@ -49,4 +68,18 @@ This is not intended to be full documentation, but a reference to the stack beha
 | number?    | (s -- n T \| s F )        | Attempts to convert the string at s to a number. If successful, push the number and a `TRUE` flag. If not successful, leave the string address on the stack, and push `FALSE`. Used inside `$compile` and `$interpret`.               |
 | literal    | ( n -- )                  | Takes a number from the stack and compiles it into the current definition.                                                                                                                                                            |
 | $interpret | ( s -- )                  | Called from `eval` to interpret the string at s, either as a word or a number. If neither, `abort`.                                                                                                                                   |
-| $compile   | ( s -- )                  | Called from `eval` to compile the string at s as a word or number. If neither, `abort`.                                                                                                                                               |
+| $compile   | ( s -- )                  | Called from `eval` to compile the string at s as a word or number. If neither, `abort`.        |
+, (comma) | ( v -- ) | Compiles the value on the stack into the dictionary and updates `here`.
+create \<name> | ( -- ) | Takes a postfix name, and creates a new name field in the dictionary
+immediate | ( -- ) | Marks the most recent definition as immediate by setting a flag on the name field. Immediate words are executed even when compile mode is set. They are most often used to compile control structures that need some level of computation at compile time.
+immed? ( cfa -- T | F ) | Tests the word with code field address on the stack, and returns TRUE if it's an immediate word, otherwise FALSE.
+
+## Timing
+To time a function, precede it with `now` and follow it with `millis` or `micros`, which will place the elapsed time on the stack.
+
+| WORD       | SIGNATURE                 | NOTES                                                                                                                                                                                                                                 |
+| ---------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+now | ( -- ) | Captures the current time using Rust's `std::time::Instant` capability
+millis | ( -- n ) | Places the number of milliseconds since `now` was called on the stack
+micros  | ( -- n ) | Places the number of microseconds since `now` was called on the stack
+
