@@ -3,6 +3,7 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
+    "MIDebuggerPath": "/usr/bin/lldb",
     "configurations": [
         {
             "type": "lldb",
@@ -20,32 +21,7 @@
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/target/debug/${workspaceFolderBasename}",
-            "terminal": "external",
-            "stopOnEntry": false,
-            "sourceLanguages": [
-                "rust"
-            ],
+            "cwd": "${workspaceFolder}/target/debug",
         },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in executable 'f2'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=f2",
-                    "--package=f2"
-                ],
-                "filter": {
-                    "name": "f2",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        }
     ]
 }

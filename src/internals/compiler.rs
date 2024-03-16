@@ -2,7 +2,7 @@
 
 use crate::engine::{
     ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, FALSE,
-    IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRLIT, TF, TRUE, VARIABLE,
+    IMMEDIATE_MASK, LITERAL, BREAK, STACK_START, STRLIT, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
 
@@ -111,7 +111,7 @@ impl TF {
                 BRANCH0 => self.i_branch0(),
                 ABORT => self.i_abort(),
                 EXIT => self.i_exit(),
-                NEXT => self.i_next(),
+                BREAK => self.i_exit(),
                 _ => {
                     pop!(self);
                     let cfa = self.data[xt as usize] as usize & ADDRESS_MASK;
@@ -175,7 +175,7 @@ impl TF {
                     self.f_literal(); // compile the literal
                 } else {
                     pop!(self); // lose the failed number
-                    let word = &self.u_get_string(self.pad_ptr);
+                    let word = &self.u_get_string(self.data[self.pad_ptr] as usize);
                     self.msg
                         .warning("$interpret", "token not recognized", Some(word));
                     self.f_abort();
@@ -306,9 +306,10 @@ impl TF {
             let mut msg = self.u_get_string(self.data[self.pad_ptr] as usize);
             msg = format!("Word not found: {} ", msg);
             self.u_set_string(self.data[self.pad_ptr] as usize, &msg);
-            // self.f_type(); // a warning message *** replace with a call to TELL
+            pop!(self);
             push!(self, FALSE);
         }
+        // pop!(self);
     }
 
     /// (parse) - ( b u c -- b u delta )
@@ -442,36 +443,36 @@ impl TF {
         self.data[self.here_ptr] += 1;
     }
 
-    /// variable <name> ( -- ) Creates a new variable in the dictionary
-    ///     This is a good candidate for shifting to Forth
-    ///     Variables use three words: a name pointer, the VARIABLE token, and the value
-    ///
-    pub fn f_variable(&mut self) {
-        self.f_create(); // gets a name and makes a name field in the dictionary
-        push!(self, VARIABLE);
-        self.f_comma(); // ( n -- )
-        push!(self, 0); // default initial value
-        self.f_comma();
-        self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
-        self.data[self.here_ptr] += 1; // over EXIT and back pointer
-        self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
-    }
-
-    /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
-    ///     Very similar to variables, except that their value is not intended to be changed
-    ///
-    pub fn f_constant(&mut self) {
-        if stack_ok!(self, 1, "constant") {
-            self.f_create();
-            push!(self, CONSTANT);
-            self.f_comma();
-            self.f_comma(); // write the value from the stack
-            self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
-            self.data[self.here_ptr] += 1; // over EXIT and back pointer
-            self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
-        }
-    }
-
+    /*     /// variable <name> ( -- ) Creates a new variable in the dictionary
+       ///     This is a good candidate for shifting to Forth
+       ///     Variables use three words: a name pointer, the VARIABLE token, and the value
+       ///
+       pub fn f_variable(&mut self) {
+           self.f_create(); // gets a name and makes a name field in the dictionary
+           push!(self, VARIABLE);
+           self.f_comma(); // ( n -- )
+           push!(self, 0); // default initial value
+           self.f_comma();
+           self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+           self.data[self.here_ptr] += 1; // over EXIT and back pointer
+           self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+       }
+    */
+    /*     /// constant <name> ( n -- ) Creates and initializez a new constant in the dictionary
+       ///     Very similar to variables, except that their value is not intended to be changed
+       ///
+       pub fn f_constant(&mut self) {
+           if stack_ok!(self, 1, "constant") {
+               self.f_create();
+               push!(self, CONSTANT);
+               self.f_comma();
+               self.f_comma(); // write the value from the stack
+               self.data[self.data[self.here_ptr] as usize] = self.data[self.last_ptr] - 1; // write the back pointer
+               self.data[self.here_ptr] += 1; // over EXIT and back pointer
+               self.data[self.context_ptr] = self.data[self.last_ptr]; // adds the new definition to FIND
+           }
+       }
+    */
     /// f_pack_d ( source len dest -- dest ) builds a new counted string from an existing counted string.
     ///     Used by CREATE
     ///
@@ -534,6 +535,7 @@ impl TF {
                                     index += 1;
                                 }
                                 ABORT => println!("abort "),
+                                BREAK => print!("exit "),
                                 EXIT => {
                                     print!("; ");
                                     if is_immed != 0 {
@@ -565,7 +567,7 @@ impl TF {
                     CONSTANT => println!(
                         "Constant: {} = {}",
                         self.u_get_string(self.data[cfa as usize - 1] as usize),
-                        self.data[cfa as usize]
+                        self.data[cfa as usize + 1]
                     ),
                     VARIABLE => println!(
                         "Variable: {} = {}",

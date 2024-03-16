@@ -3,51 +3,83 @@
 // Cache the remainder of the line.
 
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{self, BufReader, BufRead, Read, Write};
 
 use crate::messages::{DebugLevel, Msg};
 
-#[derive(Debug)]
-enum Source {
-    Stdin,
-    Stream(BufReader<File>),
+pub enum FileMode {
+    RW,     // -1 => Read-write
+    RO,     //  0 => Read-only
+    WO,     //  1 => Write-only
 }
 
-pub struct Reader {
-    source: Source, // Stdin or a file
+#[derive(Debug)]
+pub enum FType {
+    Stdin,
+    File(File),
+    BReader(BufReader<File>),
+}
+
+pub struct FileHandle {
+    pub source: FType, // Stdin, File, or BufReader
+    pub file_mode: FileMode,
+    pub file_size: usize,
+    pub file_position: usize,
     msg: Msg,
 }
 
 /// Reader handles input, from stdin or files
-impl Reader {
-    /// Reader::new creates a new stream handle
-    ///
-    pub fn new(file_path: Option<&std::path::PathBuf>, msg_handler: Msg) -> Option<Reader> {
+/// 
+///     A populated FileHandle is always for a specific file.
+///     Stdin has None in the source field, and the other fields are not used in this case.
+impl FileHandle {
+
+    pub fn new(file_path: Option<&std::path::PathBuf>, msg_handler: Msg, mode: FileMode) -> Option<FileHandle> {
         // Initialize a tokenizer.
         let mut message_handler = Msg::new();
         message_handler.set_level(DebugLevel::Error);
         match file_path {
-            None => Some(Reader {
-                source: Source::Stdin,
-                msg: msg_handler,
-            }),
-            Some(filepath) => {
-                let file = File::open(filepath);
+            Some(file_path) => {
+                let file = File::open(file_path);
                 match file {
-                    Ok(file) => Some(Reader {
-                        source: Source::Stream(BufReader::new(file)),
-                        msg: msg_handler,
-                    }),
+                    Ok(file) => {
+                        match mode {
+                            FileMode::RO => 
+                                Some(FileHandle {
+                                    source: FType::BReader(BufReader::new(file)),
+                                    file_mode: FileMode::RO,
+                                    file_size: 0,
+                                    file_position: 0,        
+                                    msg: msg_handler,
+                                }),
+                            FileMode::RW | FileMode::WO => {
+                                Some(FileHandle {
+                                    source: FType::File(file),
+                                    file_mode: FileMode::RO,
+                                    file_size: 0,
+                                    file_position: 0,
+                                    msg: msg_handler,
+                                })
+                            }
+                        }
+                    }
                     Err(_) => {
                         msg_handler.error(
                             "Reader::new",
                             "File not able to be opened",
                             Some(file_path),
                         );
-                        None
+                        return None;
                     }
                 }
             }
+            None => Some(FileHandle { // Stdin
+                source: FType::Stdin,
+                file_mode: FileMode::RO,
+                file_size: 0,
+                file_position: 0,
+                msg: message_handler,
+            }),
         }
     }
 
@@ -60,11 +92,12 @@ impl Reader {
         let mut new_line = String::new();
         let result;
         match self.source {
-            Source::Stdin => {
+            FType::Stdin => {
                 io::stdout().flush().unwrap();
                 result = io::stdin().read_line(&mut new_line);
             }
-            Source::Stream(ref mut file) => result = file.read_line(&mut new_line),
+            FType::BReader(ref mut br) => result = br.read_line(&mut new_line),
+            _ => { return None }
         }
         match result {
             Ok(chars) => {

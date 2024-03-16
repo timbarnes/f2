@@ -154,59 +154,6 @@ impl TF {
     /// Set up all the words that are implemented in Rust
     ///     Each one gets a standard dictionary reference, and a slot in the builtins data structure.
     pub fn add_builtins(&mut self) {
-        self.u_add_builtin(
-            "_builtin",
-            TF::i_builtin,
-            "_builtin  opcode -- executes the builtin on the stack",
-        );
-        self.u_add_builtin(
-            "_variable",
-            TF::i_variable,
-            "variable  opcode -- loads a variable's address on the stack",
-        );
-        self.u_add_builtin(
-            "_constant",
-            TF::i_constant,
-            "_constant  opcode -- loads a constant's value on the stack",
-        );
-        self.u_add_builtin(
-            "_literal",
-            TF::i_literal,
-            "_literal  opcode -- loads a number on the stack",
-        );
-        self.u_add_builtin(
-            "_stringlit",
-            TF::i_strlit,
-            "_stringlit  opcode -- loads a string pointer on the stack",
-        );
-        self.u_add_builtin(
-            "_definition",
-            TF::i_builtin,
-            "_definition  opcode -- executes a colon definition",
-        );
-        self.u_add_builtin(
-            "_branch",
-            TF::i_branch,
-            "_branch  opcode -- executes an unconditional branch",
-        );
-        self.u_add_builtin(
-            "_branch0",
-            TF::i_branch0,
-            "_branch0 opcode -- executes a branch if zero",
-        );
-        self.u_add_builtin("_abort", TF::f_abort, "abort ( opcode -- ) calls ABORT");
-        self.u_add_builtin(
-            "exit",
-            TF::i_exit,
-            "exit ( -- ) returns from the current definition",
-        );
-        self.u_add_builtin(
-            "_next",
-            TF::i_next,
-            "_next opcode -- end of word - continue to the next one",
-        );
-        // Start of normal functions
-
         self.u_add_builtin("+", TF::f_plus, "+ ( j k -- j+k ) Push j+k on the stack");
         self.u_add_builtin("-", TF::f_minus, "- ( j k -- j+k ) Push j-k on the stack");
         self.u_add_builtin("*", TF::f_times, "* ( j k -- j-k ) Push  -k on the stack");
@@ -216,11 +163,6 @@ impl TF {
             "<",
             TF::f_less,
             "( j k -- j/k ) If j < k push true else false",
-        );
-        self.u_add_builtin(
-            ".",
-            TF::f_dot,
-            ". ( n -- ) Pop the top of the stack and print it, followed by a space",
         );
         self.u_add_builtin(
             "true",
@@ -247,12 +189,11 @@ impl TF {
             TF::f_0less,
             "( j k -- j/k ) If j < 0 push true else false",
         );
-        /*         self.u_add_builtin(
+        self.u_add_builtin(
             ".s",
             TF::f_dot_s,
             ".s ( -- ) Print the contents of the calculation stack",
-        ); */
-        self.u_add_builtin("cr", TF::f_cr, "cr ( -- ) Print a newline");
+        );
         self.u_add_builtin(
             "show-stack",
             TF::f_show_stack,
@@ -330,9 +271,7 @@ impl TF {
             TF::f_key,
             "key ( -- c | 0 ) get a character and push on the stack, or zero if none available",
         );
-        self.u_add_builtin("r/w", TF::f_r_w, "");
-        self.u_add_builtin("r/o", TF::f_r_o, "");
-        self.u_add_builtin(
+       self.u_add_builtin(
             "include-file",
             TF::f_include_file,
             "include-file ( a -- ) Taking the TOS as a pointer to 
@@ -422,29 +361,13 @@ impl TF {
             TF::f_parse_p,
             "(parse) - b u c -- b u delta ) return the location of a delimited token in string space",
         );
-        /*        self.u_add_builtin(
-                   "s\"",
-                   TF::f_s_quote,
-                   "s\" Place the following string in the TMP string buffer",
-               );
-        */
-        self.u_add_builtin(
-            "variable",
-            TF::f_variable,
-            "variable <name> creates a new variable in the dictionary",
-        );
-        self.u_add_builtin(
-            "constant",
-            TF::f_constant,
-            "constant <name> ( n -- ) creates and initializes a new constant in the dictionary",
-        );
         self.u_add_builtin(
             "create",
             TF::f_create,
             "create <name> ( -- ) creates a name field in the dictionary",
         );
         self.u_add_builtin(
-            "pack$",
+            "s-move",
             TF::f_smove,
             "pack$ ( src n dest -- ) copies a counted string to a new location",
         );
@@ -501,5 +424,15 @@ impl TF {
             TF::f_millis,
             "millis ( -- n ) Milliseconds since NOW was called",
         );
+        self.u_add_builtin("open-file", TF::f_open_file, "open-file ( s u fam -- file-id ior ) Open the file named at s, length u, with file access mode fam.
+        Returns a file handle and 0 if successful.");
+        self.u_add_builtin("close-file", TF::f_close_file, "close-file ( file-id -- ior ) Close a file, returning the I/O status code.");
+        self.u_add_builtin("read-line", TF::f_read_line, "read-line ( s u file-id -- u flag ior ) Read up to u characters from a file.
+        Returns the number of characters read, a flag indicating success or failure, and an i/o result code.
+        Starts from FILE_POSITION, and updates FILE_POSITION on completion.");
+        self.u_add_builtin("write-line", TF::f_write_line, "write-line ( s u file-id -- ior ) Write u characters from s to a file, returning an i/o result code.");
+        self.u_add_builtin("file-position", TF::f_file_position, "file-position ( file-id -- u ior ) Returns the current file position and an i/o result");
+        self.u_add_builtin("file-size", TF::f_file_size, "file-size ( file-id -- u ior ) Returns the size in characters of the file, plus an i/o result code");
+
     }
 }

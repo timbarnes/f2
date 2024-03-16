@@ -4,7 +4,7 @@
 ///
 use crate::engine::{
     ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT,
-    LITERAL, NEXT, RET_START, STRLIT, TF, VARIABLE,
+    LITERAL, BREAK, RET_START, STRLIT, TF, VARIABLE,
 };
 
 macro_rules! pop {
@@ -13,11 +13,6 @@ macro_rules! pop {
         $self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
-    }};
-}
-macro_rules! top {
-    ($self:ident) => {{
-        $self.data[$self.stack_ptr]
     }};
 }
 macro_rules! push {
@@ -166,7 +161,11 @@ impl TF {
                     self.f_r_from();
                     pc = pop!(self) as usize;
                 }
-                NEXT => self.i_next(),
+                BREAK => {
+                    // Breaks out of a word by popping the PC from the return stack
+                    self.f_r_from();
+                    pc = pop!(self) as usize;
+                }
                 _ => {
                     // we have a word address
                     // see if it's a builtin:

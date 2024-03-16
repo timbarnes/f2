@@ -4,7 +4,7 @@
 mod config;
 mod engine;
 mod messages;
-mod reader;
+mod files;
 //mod tokenizer;
 mod internals;
 
