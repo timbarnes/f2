@@ -103,8 +103,8 @@ FALSE 55 0< test-single
 4 7 7 4 swap test-dual
 5 12 5 12 over drop test-dual
 9 4 6 9 4 rot drop test-dual
-5 ?dup test-dual
-0 ?dup test-single
+5 ?dup test-single
+0 0 ?dup test-single
 
 ."        Variables" cr
 5 variable x 5 x ! x @ test-single
@@ -118,6 +118,8 @@ FALSE 55 0< test-single
 264 s" does-not-exist" drop ?unique test-single
 264 s" *" drop ?unique test-single
 264 s" min" drop ?unique test-single
+: exit-test 22 33 exit 44 ;
+22 33 exit-test test-dual
 
 ."        Application tests" cr
 1 0 fac test-single

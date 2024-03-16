@@ -2,7 +2,7 @@
 
 use crate::engine::{
     ABORT, ADDRESS_MASK, BRANCH, BRANCH0, BUILTIN, BUILTIN_MASK, CONSTANT, DEFINITION, EXIT, FALSE,
-    IMMEDIATE_MASK, LITERAL, NEXT, STACK_START, STRLIT, TF, TRUE, VARIABLE,
+    IMMEDIATE_MASK, LITERAL, BREAK, STACK_START, STRLIT, TF, TRUE, VARIABLE,
 };
 use crate::internals::general::u_is_integer;
 
@@ -111,7 +111,7 @@ impl TF {
                 BRANCH0 => self.i_branch0(),
                 ABORT => self.i_abort(),
                 EXIT => self.i_exit(),
-                NEXT => self.i_next(),
+                BREAK => self.i_exit(),
                 _ => {
                     pop!(self);
                     let cfa = self.data[xt as usize] as usize & ADDRESS_MASK;
@@ -535,6 +535,7 @@ impl TF {
                                     index += 1;
                                 }
                                 ABORT => println!("abort "),
+                                BREAK => print!("exit "),
                                 EXIT => {
                                     print!("; ");
                                     if is_immed != 0 {
@@ -566,7 +567,7 @@ impl TF {
                     CONSTANT => println!(
                         "Constant: {} = {}",
                         self.u_get_string(self.data[cfa as usize - 1] as usize),
-                        self.data[cfa as usize]
+                        self.data[cfa as usize + 1]
                     ),
                     VARIABLE => println!(
                         "Variable: {} = {}",

@@ -2,7 +2,7 @@
 
 use crate::internals::builtin::BuiltInFn;
 use crate::messages::Msg;
-use crate::reader::Reader;
+use crate::files::{FileHandle, FileMode};
 use std::time::Instant;
 
 // DATA AREA constants
@@ -26,6 +26,8 @@ pub const FALSE: i64 = 0;
 pub const ADDRESS_MASK: usize = 0x00FFFFFFFFFFFFFF; // to get rid of flags
 pub const IMMEDIATE_MASK: usize = 0x4000000000000000; // the immediate flag bit
 pub const BUILTIN_MASK: usize = 0x2000000000000000; // the builtin flag bit
+pub const FILE_MODE_R_W: i64 = -1;
+pub const FILE_MODE_R_O: i64 = 0;
 
 // Indices into builtins to drive execution of each data type
 pub const BUILTIN: i64 = 100000;
@@ -38,7 +40,7 @@ pub const BRANCH: i64 = 100006;
 pub const BRANCH0: i64 = 100007;
 pub const ABORT: i64 = 100008;
 pub const EXIT: i64 = 100009;
-pub const NEXT: i64 = 100010;
+pub const BREAK: i64 = 100010;
 
 /// The primary data structure for the Forth engine
 ///
@@ -57,79 +59,69 @@ pub struct TF {
     pub data: [i64; DATA_SIZE],
     pub strings: [char; STRING_SIZE], // storage for strings
     pub builtins: Vec<BuiltInFn>,     // the dictionary of builtins
-    //pub return_stack: Vec<i64>,       // for do loops etc.
-    pub here_ptr: usize,
-    pub stack_ptr: usize,  // top of the linear space stack
-    pub return_ptr: usize, // top of the return stack
-    pub context_ptr: usize,
-    pub eval_ptr: usize, // used to turn compile mode on and off
-    pub base_ptr: usize,
-    pub pad_ptr: usize,    // string buffer for parser
-    pub tmp_ptr: usize,    // temporary string buffer
-    pub string_ptr: usize, // points to the beginning of free string space
-    pub last_ptr: usize,   // points to name of top word
-    pub hld_ptr: usize,    // for numeric string work
-    pub file_mode: FileMode,
-    pub state_ptr: usize, // true if compiling a word
-    pub pc_ptr: usize,    // program counter
-    pub abort_ptr: usize, // true if abort has been called
-    pub tib_ptr: usize,   // TIB
+    //pub return_stack: Vec<i64>,     // for do loops etc.
+    pub here_ptr: usize,              // first free cell at top of dictionary
+    pub stack_ptr: usize,             // top of the linear space stack
+    pub return_ptr: usize,            // top of the return stack
+    pub context_ptr: usize,           // nfa of most recent word
+    pub eval_ptr: usize,              // used to turn compile mode on and off
+    pub base_ptr: usize,              // for numeric I/O
+    pub pad_ptr: usize,               // string buffer for parser
+    pub tmp_ptr: usize,               // temporary string buffer
+    pub string_ptr: usize,            // points to the beginning of free string space
+    pub last_ptr: usize,              // points to name of top word
+    pub hld_ptr: usize,               // for numeric string work
+    pub state_ptr: usize,             // true if compiling a word
+    pub pc_ptr: usize,                // program counter
+    pub abort_ptr: usize,             // true if abort has been called
+    pub tib_ptr: usize,               // TIB
     pub tib_size_ptr: usize,
     pub tib_in_ptr: usize,
-    pub exit_flag: bool, // set when the "bye" word is executed.
+    pub exit_flag: bool,              // set when the "bye" word is executed.
     pub msg: Msg,
-    pub reader: Vec<Reader>, // allows for nested file processing
-    pub show_stack: bool,    // show the stack at the completion of a line of interaction
+    pub reader: Vec<FileHandle>,   // allows for nested file processing
+    pub files: Vec<FileHandle>,       // keeps track of open files
+    pub show_stack: bool,             // show the stack at the completion of a line of interaction
     pub stepper_ptr: usize,
-    pub timer: Instant, // for timing things
+    pub timer: Instant,               // for timing things
 }
 
-#[derive(Debug)]
-pub enum FileMode {
-    // used for file I/O
-    ReadWrite,
-    ReadOnly,
-    Unset,
-}
 
 impl TF {
     // ForthInterpreter struct implementations
     pub fn new() -> TF {
-        if let Some(reader) = Reader::new(None, Msg::new()) {
-            let mut interpreter = TF {
-                data: [0; DATA_SIZE],
-                strings: [' '; STRING_SIZE],
-                builtins: Vec::new(),
-                here_ptr: WORD_START,
-                stack_ptr: STACK_START,
-                return_ptr: RET_START,
-                string_ptr: 0,
-                context_ptr: 0,
-                eval_ptr: 0,
-                base_ptr: 0,
-                pad_ptr: 0,
-                tmp_ptr: 0,
-                last_ptr: 0,
-                hld_ptr: 0,
-                file_mode: FileMode::Unset,
-                state_ptr: 0,
-                pc_ptr: 0,
-                abort_ptr: 0,
-                tib_ptr: 0,
-                tib_size_ptr: 0,
-                tib_in_ptr: 0,
-                exit_flag: false,
-                msg: Msg::new(),
-                reader: Vec::new(),
-                show_stack: true,
-                stepper_ptr: 0,
-                timer: Instant::now(),
-            };
-            interpreter.reader.push(reader);
-            interpreter
-        } else {
-            panic!("unable to create reader");
-        }
+        let mut interpreter = TF {
+            data: [0; DATA_SIZE],
+            strings: [' '; STRING_SIZE],
+            builtins: Vec::new(),
+            here_ptr: WORD_START,
+            stack_ptr: STACK_START,
+            return_ptr: RET_START,
+            string_ptr: 0,
+            context_ptr: 0,
+            eval_ptr: 0,
+            base_ptr: 0,
+            pad_ptr: 0,
+            tmp_ptr: 0,
+            last_ptr: 0,
+            hld_ptr: 0,
+            state_ptr: 0,
+            pc_ptr: 0,
+            abort_ptr: 0,
+            tib_ptr: 0,
+            tib_size_ptr: 0,
+            tib_in_ptr: 0,
+            exit_flag: false,
+            msg: Msg::new(),
+            reader: Vec::new(),
+            files: Vec::new(),
+            show_stack: true,
+            stepper_ptr: 0,
+            timer: Instant::now(),
+        };
+        let fh = FileHandle::new(None, Msg::new(), FileMode::RO).expect("Can't access stdout");
+        interpreter.reader.push(fh); // Indicates stdin is active
+        interpreter
     }
 
     /// cold_start is where the interpreter begins, installing some variables and the builtin functions.

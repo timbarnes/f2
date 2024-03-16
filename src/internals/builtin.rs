@@ -271,9 +271,7 @@ impl TF {
             TF::f_key,
             "key ( -- c | 0 ) get a character and push on the stack, or zero if none available",
         );
-        self.u_add_builtin("r/w", TF::f_r_w, "");
-        self.u_add_builtin("r/o", TF::f_r_o, "");
-        self.u_add_builtin(
+       self.u_add_builtin(
             "include-file",
             TF::f_include_file,
             "include-file ( a -- ) Taking the TOS as a pointer to 
@@ -426,5 +424,15 @@ impl TF {
             TF::f_millis,
             "millis ( -- n ) Milliseconds since NOW was called",
         );
+        self.u_add_builtin("open-file", TF::f_open_file, "open-file ( s u fam -- file-id ior ) Open the file named at s, length u, with file access mode fam.
+        Returns a file handle and 0 if successful.");
+        self.u_add_builtin("close-file", TF::f_close_file, "close-file ( file-id -- ior ) Close a file, returning the I/O status code.");
+        self.u_add_builtin("read-line", TF::f_read_line, "read-line ( s u file-id -- u flag ior ) Read up to u characters from a file.
+        Returns the number of characters read, a flag indicating success or failure, and an i/o result code.
+        Starts from FILE_POSITION, and updates FILE_POSITION on completion.");
+        self.u_add_builtin("write-line", TF::f_write_line, "write-line ( s u file-id -- ior ) Write u characters from s to a file, returning an i/o result code.");
+        self.u_add_builtin("file-position", TF::f_file_position, "file-position ( file-id -- u ior ) Returns the current file position and an i/o result");
+        self.u_add_builtin("file-size", TF::f_file_size, "file-size ( file-id -- u ior ) Returns the size in characters of the file, plus an i/o result code");
+
     }
 }
