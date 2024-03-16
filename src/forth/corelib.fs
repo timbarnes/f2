@@ -239,7 +239,7 @@ variable word-counter
                     ;
 
 : forget ( <name> )                             \ delete <name> and any words since
-                    ' dup  
+                    (') dup  
                     if 
                         1- dup dup here ! @ s-here !            \ move to nfa and set HERE and S-HERE
                         1- @ 1+ dup context ! last !            \ go back a link and set CONTEXT and LAST
