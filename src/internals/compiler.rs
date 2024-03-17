@@ -643,7 +643,7 @@ impl TF {
     pub fn u_save_string(&mut self, from: &str, to: usize) {
         self.strings[to] = from.len() as u8 as char; // count byte
         for (i, c) in from.chars().enumerate() {
-            self.strings[i + 1] = c;
+            self.strings[to + i + 1] = c;
         }
     }
 }

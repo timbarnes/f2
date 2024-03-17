@@ -7,6 +7,7 @@ use std::io::{self, BufReader, BufRead, Read, Write};
 
 use crate::messages::{DebugLevel, Msg};
 
+#[derive(Debug)]
 pub enum FileMode {
     RW,     // -1 => Read-write
     RO,     //  0 => Read-only
@@ -20,6 +21,7 @@ pub enum FType {
     BReader(BufReader<File>),
 }
 
+#[derive(Debug)]
 pub struct FileHandle {
     pub source: FType, // Stdin, File, or BufReader
     pub file_mode: FileMode,
