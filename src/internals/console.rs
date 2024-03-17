@@ -4,6 +4,7 @@ use crate::messages::Msg;
 use crate::files::{FileHandle, FType, FileMode};
 use std::cmp::min;
 use std::io::{self, Write, BufRead};
+use std::process::Command;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -19,7 +20,7 @@ macro_rules! stack_ok {
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
+        //$self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
     }};
@@ -36,7 +37,7 @@ macro_rules! push {
     };
 }
 
-    /// file I/O
+    /// file I/O and system call
     /// 
     /// Most activity uses STDIN and STDOUT, but the system can also process source code
     /// from files (typically ending in .fs.
@@ -50,6 +51,30 @@ macro_rules! push {
     /// Forth accesses files via an index into the vector.
 
 impl TF {
+    /// (system) ( s -- ) Execute a shell command from the string on the stack (Unix-like operating systems)
+    /// 
+pub fn f_system_p(&mut self) {
+    if stack_ok!(self, 1, "(system)") {
+        let addr = pop!(self) as usize;
+        let cmd_string = self.u_get_string(addr);
+        let mut args = cmd_string.split_ascii_whitespace();
+        //println!("args: {:?}", args);
+        let mut cmd: Command;
+        let c = args.next();
+        match c {
+            Some(c) =>  cmd = Command::new(c),
+            None => return,
+        }
+        for arg in args {
+            println!("Adding {}", arg);
+            cmd.arg(arg);
+        }
+        let output = cmd.output().expect("(system) failed to execute command");
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
+   }
+}
+
     /// key ( -- c | 0 ) get a character and push on the stack, or zero if none available
     pub fn f_key(&mut self) {
         let reader = self.reader.last();

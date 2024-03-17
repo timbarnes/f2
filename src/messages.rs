@@ -31,7 +31,7 @@ impl Msg {
         self.debug_level.clone()
     }
 
-    pub fn debug<T: Debug>(&self, context: &str, text: &str, val: Option<T>) {
+    /* pub fn debug<T: Debug>(&self, context: &str, text: &str, val: Option<T>) {
         if let DebugLevel::Debug = self.debug_level {
             match val {
                 Some(val) => println!("DEBUG: {context}: {text}: {:?}", val),
@@ -49,7 +49,7 @@ impl Msg {
             _ => {}
         }
     }
-
+ */
     pub fn warning<T: Debug>(&self, context: &str, text: &str, val: Option<T>) {
         match self.debug_level {
             DebugLevel::Warning | DebugLevel::Info | DebugLevel::Debug => match val {

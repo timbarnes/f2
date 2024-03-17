@@ -433,6 +433,7 @@ impl TF {
         self.u_add_builtin("write-line", TF::f_write_line, "write-line ( s u file-id -- ior ) Write u characters from s to a file, returning an i/o result code.");
         self.u_add_builtin("file-position", TF::f_file_position, "file-position ( file-id -- u ior ) Returns the current file position and an i/o result");
         self.u_add_builtin("file-size", TF::f_file_size, "file-size ( file-id -- u ior ) Returns the size in characters of the file, plus an i/o result code");
-
+        self.u_add_builtin("(system)", TF::f_system_p, "(system) ( s -- ) Execute a shell command, using string s.
+        Output is channeled to stdout");
     }
 }

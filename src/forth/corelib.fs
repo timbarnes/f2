@@ -231,6 +231,8 @@ variable word-counter
 : dbg-quiet         0 dbg ;
 : debug             show-stack step-on ;
 
+: system" ( <command> ) tmp @ '"' parse-to drop (system) ;
+
 \ : abort" ." drop type space abort ;
 
 : forget-last ( -- )                            \ delete the most recent definition

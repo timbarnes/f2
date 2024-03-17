@@ -9,4 +9,3 @@ edition = "2021"
 clap = "4.5.0"
 
 [profile.dev]
-warn-unused = true
