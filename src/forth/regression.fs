@@ -129,4 +129,4 @@ FALSE 55 0< test-single
 
 test-results  \ Checks to see if all tests passed. Errors, if any, are left on the stack.
 
-\ forget test-num
+forget test-num
