@@ -1,7 +1,8 @@
 // General-purpose builtin words
 
 use crate::engine::{FALSE, STACK_START, TF, TRUE};
-use std::time::Instant;
+use std::time::{Instant, Duration};
+use std::thread;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -288,4 +289,13 @@ impl TF {
         let duration = self.timer.elapsed();
         push!(self, duration.as_millis() as i64);
     }
+
+    /// sleep ( ms -- ) Sleep for ms milliseconds
+    pub fn f_sleep(&mut self) {
+        if stack_ok!(self, 1, "sleep") {
+            let delay = pop!(self) as u64;
+            let millis = Duration::from_millis(delay);
+            thread::sleep(millis);
+        }
+   }
 }

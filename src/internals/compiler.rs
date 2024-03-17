@@ -550,8 +550,8 @@ impl TF {
                                     let mut cfa = self.data[index] as usize;
                                     let mut mask = cfa & BUILTIN_MASK;
                                     if mask == 0 {
-                                        let word = self.data[self.data[index] as usize - 1]; // nfa address
-                                        let name = self.u_get_string(word as usize);
+                                        let word = ADDRESS_MASK & self.data[self.data[index] as usize - 1] as usize; // nfa address
+                                        let name = self.u_get_string(word);
                                         print!("{name} ");
                                     } else {
                                         mask = !BUILTIN_MASK;

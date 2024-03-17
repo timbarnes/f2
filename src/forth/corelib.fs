@@ -60,6 +60,7 @@
 : decimal 10 base ! ;
 : hex 16 base ! ;
 
+: [compile]         (') , ; immediate       \ Cause the following word to be compiled in, even if immediate
 
 : text              BL parse ;                                \ Parser shortcut for space-delimited tokens
 : s-parse           tmp @ swap parse-to ;                     \ Same as text, but loads to tmp instead of pad
@@ -90,20 +91,6 @@
 : bp>nfa            1 + ;                                         \ from preceding back pointer to nfa
 : bp>cfa            2 + ; 
 
-: for               here @ ['] >r , ; immediate
-: next              ['] r> , 
-                    LITERAL , 1 , 
-                    ['] - , ['] dup , 
-                    ['] 0= , BRANCH0 , 
-                    here @ - , 
-                    ['] drop , ; immediate
-
-: begin             here @ ; immediate
-: until             BRANCH0 , here @ - , ; immediate
-: again             BRANCH , here @ - , ; immediate
-: while             BRANCH0 , here @ 0 , ;  immediate
-: repeat            BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
-
 : 1- ( n -- n-1 )   1 - ;
 : 1+ ( n -- n+1 )   1 + ;
 : negate ( n -- -n ) 0 swap - ;
@@ -122,6 +109,33 @@
 : max ( m n -- m | n ) 2dup > if drop else nip then ;
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
 
+: for               here @ ['] >r , ; immediate
+: next              ['] r> , 
+                    LITERAL , 1 , 
+                    ['] - , ['] dup , 
+                    ['] 0= , BRANCH0 , 
+                    here @ - , 
+                    ['] drop , ; immediate
+
+: begin             here @ ; immediate
+: until             BRANCH0 , here @ - , ; immediate
+: again             BRANCH , here @ - , ; immediate
+: while             BRANCH0 , here @ 0 , ;  immediate
+: repeat            BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
+
+: case              0 ; immediate
+: of                ['] over ,
+                    ['] = ,
+                    [compile] if
+                    ['] drop , ; immediate
+: endof             [compile] else ; immediate
+: endcase           ['] drop ,
+                    begin
+                        ?dup
+                    while
+                        [compile] then
+                    repeat ; immediate
+
 : space ( -- )      BL emit ;
 : spaces ( n -- )   dup 0> if for space next else drop then ;
 : cr ( -- )         '\n' emit ;
@@ -135,11 +149,11 @@
                         drop ;
 
 : type ( s -- )                                 \ Print from the string pointer on the stack
-                    ADDRESS_MASK and                            \ Wipe out any flags
-                    dup c@ swap 1+ swap                          \ Get the length to drive the for loop
+                    ADDRESS_MASK and                \ Wipe out any flags
+                    dup c@ swap 1+ swap             \ Get the length to drive the for loop
                     tell ;
 
-: rtell ( s l w -- )                             \ Right justify a string of length l in a field of w characters
+: rtell ( s l w -- )                            \ Right justify a string of length l in a field of w characters
                     over - 1 max 
                     spaces tell ;
 
@@ -153,15 +167,15 @@
 : ltype             swap ADDRESS_MASK and dup c@ 
                     rot swap - swap type spaces ;
 
-: .tmp              tmp @ type ;                             \ Print the tmp buffer
-: .pad              pad @ type ;                             \ Print the pad buffer
+: .tmp              tmp @ type ;                               \ Print the tmp buffer
+: .pad              pad @ type ;                               \ Print the pad buffer
 : ."  ( -- )        state @                                    \ Compile or print a string
                     if
-                        STRLIT ,                                \ Compilation section
+                        STRLIT ,                               \ Compilation section
                         s" drop s-create ,
                         ['] type ,
                     else
-                        s" drop type                            \ Execution (print) section
+                        s" drop type                           \ Execution (print) section
                     then ; immediate
 
 \ mumeric functions
@@ -200,7 +214,7 @@
 : . 0 .r space ;
 
 : +! ( n addr -- )  dup @ rot + swap ! ;
-: ? ( addr -- )     @ . ;
+: ?  ( addr -- )    @ . ;
 
 \ Implementation of word
 variable word-counter
@@ -255,10 +269,6 @@ variable word-counter
                     #tib @ >in @ < if FALSE else key TRUE then ;        \ otherwise push FALSE
 : strlen ( s -- n ) c@ ;                                \ return the count byte from the string
                                                 
-\ s" src/regression.fs" drop drop
-\ : run-regression include ;
-
-
 ( Application functions )
 
 : _fac ( r n -- r )   \ Helper function that does most of the work.
@@ -276,8 +286,6 @@ variable word-counter
                     else 
                         drop 1 
                     then ;
-
-\ include src/numbers.fs
 
 clear
 \ cr ." Library loaded." cr
