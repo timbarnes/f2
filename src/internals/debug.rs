@@ -88,8 +88,8 @@ impl TF {
 
         // Indent based on return stack depth
         let depth = RET_START - self.return_ptr;
-        for _i in 1..depth { print!("."); }  
-        // print!("{}/{} ", pc, contents);
+        print!("{depth}");
+        for _i in 1..depth { print!(" "); }  
         self.f_dot_s();   
         match mode {
             -1 => {

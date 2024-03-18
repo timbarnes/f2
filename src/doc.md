@@ -35,7 +35,7 @@ system" \<shell command>" | ( -- ) | Runs a shell command and returns the output
 | flush         | ( -- )         | Force the output buffer to be flushed to the terminal.                                     |
 space | ( -- ) | Prints a single space.
 spaces | ( u -- ) | Prints u spaces.
-| .s            | ( -- )         | Print the contents of the stack.                                                           |
+| .s            | ( -- )         | Print the contents of the stack. Does not consume stack elements.                          |
 | .             | ( v -- )       | Print the top of the stack as an integer.                                                  |
 u. | ( u -- ) | Print the top of the stack as an unsigned value
 u.r | ( u w -- ) | Print unsigned u right-justified in a field w wide. If w is too small, print the full number anyway
@@ -86,6 +86,8 @@ create \<name> | ( -- ) | Takes a postfix name, and creates a new name field in 
 immediate | ( -- ) | Marks the most recent definition as immediate by setting a flag on the name field. Immediate words are executed even when compile mode is set. They are most often used to compile control structures that need some level of computation at compile time.
 immed? ( cfa -- T | F ) | Tests the word with code field address on the stack, and returns TRUE if it's an immediate word, otherwise FALSE.
 [compile] | \<name> | Delays the compilation of an immediate word. Typically used in the definition of control structures and compiler customization.
+forget-last | ( -- ) | Delete the last definition from the dictionary. 
+forget | \<name> | Delete word `<name>` and any words defined more recently than `<name>`.
 
 ## Timing and Delay
 To time a function, precede it with `now` and follow it with `millis` or `micros`, which will place the elapsed time on the stack.
@@ -98,3 +100,17 @@ micros  | ( -- n ) | Places the number of microseconds since `now` was called on
 ms | ( n -- ) | Sleep for `n` milliseconds
 sec | ( n -- ) | Sleep for `n` seconds
 
+## Debugging
+A single stepper and trace capability allows for viewing interpreted functions as they execute. When active, it prints a visual indication of the depth of the return stack, the contents of the stack, and the word being executed.
+
+The single stepper responds to single character commands (followed by Enter):
+* `s` => take a single step
+* `t` => shift to trace mode
+* `o` => turn the stepper off
+
+WORD | SIGNATURE | NOTES
+--- | --- | ---
+step-on | ( -- ) | Turns on single stepping.
+step-off | ( -- ) | Turns off single stepping.
+trace-on | ( -- ) | Turns on tracing.
+trace-off | ( -- ) | Turns off tracing.
