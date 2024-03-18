@@ -256,6 +256,7 @@ variable word-counter
                     ;
 
 : forget ( <name> )                             \ delete <name> and any words since
+                    trace-off step-off          \ we're messing with the dictionary, so we don't want to run FIND
                     (') dup  
                     if 
                         1- dup dup here ! @ s-here !            \ move to nfa and set HERE and S-HERE

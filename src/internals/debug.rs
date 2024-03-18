@@ -110,6 +110,7 @@ impl TF {
             }
         }
         match c {
+            't' => self.data[self.stepper_ptr] = 1,
             's' => {
                 match contents as i64 {
                     VARIABLE | CONSTANT | DEFINITION => println!(" {} ", self.u_get_string(self.data[pc - 1] as usize)),
@@ -124,14 +125,13 @@ impl TF {
                         if is_builtin {
                             println!(" {} ", &self.builtins[contents].name);
                         } else {
-                            println!();
-                            // println!("?? {} ", self.u_get_string(self.data[pc] as usize & ADDRESS_MASK));
+                            println!(" ->{}", self.u_get_string(self.data[contents - 1] as usize));
                         }
                     }
                 } 
             }
-            'c' => self.data[self.stepper_ptr] = FALSE,
-            '\n' | _ => println!("Stepper: 's' for show, 'c' for continue."),
+            'o' => self.data[self.stepper_ptr] = 0,
+            '\n' | _ => println!("Stepper: 's' for show, 't' for trace, 'o' for off."),
         }
     }
 }
