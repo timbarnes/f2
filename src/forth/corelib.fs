@@ -247,7 +247,7 @@ variable word-counter
 
 : system" ( <command> ) tmp @ '"' parse-to drop (system) ;
 
-\ : abort" ." drop type space abort ;
+: abort" STRLIT , s" drop s-create , ['] type , ['] abort , ; immediate \ abort with a message. Use inside another word.
 
 : forget-last ( -- )                            \ delete the most recent definition
                     here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
@@ -264,10 +264,10 @@ variable word-counter
 
 \ : ?stack depth 0= if abort" Stack underflow" then ;
 
-: kkey ( -- c )     >in @ c@ 1 >in +! ;                     \ Get the next character from the TIB
-: ?key ( -- c T | F )                                   \ If there's a character in TIB, push it and TRUE
-                    #tib @ >in @ < if FALSE else key TRUE then ;        \ otherwise push FALSE
-: strlen ( s -- n ) c@ ;                                \ return the count byte from the string
+: kkey ( -- c )     >in @ c@ 1 >in +! ;                         \ Get the next character from the TIB
+: ?key ( -- c T | F )                                           \ If there's a character in TIB, push it and TRUE
+                    #tib @ >in @ < if FALSE else key TRUE then ; \ otherwise push FALSE
+: strlen ( s -- n ) c@ ;                                        \ return the count byte from the string
                                                 
 ( Application functions )
 
