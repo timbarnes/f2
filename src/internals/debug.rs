@@ -73,7 +73,8 @@ impl TF {
     ///     it is driven by the STEPPER variable:
     ///     STEPPER = 0 => stepping is off
     ///     STEPPER = -1 => single step
-    ///     STEPPER = 1 => trace mode, printing the stack and current word before each operation
+    ///     STEPPER >0 => trace mode, printing the stack and current word before each operation.
+    ///                   value of stepper indicates how many levels deep to trace
     /// 
     ///     pc is the program counter, which represents the address of the cell being executed.
     ///
@@ -88,6 +89,7 @@ impl TF {
 
         // Indent based on return stack depth
         let depth = RET_START - self.return_ptr;
+        if depth > mode as usize { return; }
         print!("{depth}");
         for _i in 1..depth { print!(" "); }  
         self.f_dot_s();   

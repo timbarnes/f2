@@ -220,7 +220,7 @@
 variable word-counter
 
 : .word ( bp -- bp )                            \ prints a word name, given the preceding back pointer
-                    dup dup 4 u.r space 1+ @ 12 ltype 
+                    dup dup 1+ 4 u.r space 1+ @ 13 ltype 
                     1 word-counter +! 
                     word-counter @ 8 mod
                     if space else cr then @ ;   
@@ -237,6 +237,8 @@ variable word-counter
 : step-on           -1 stepper ! ;
 : step-off          0 stepper ! ;
 : trace-on          1 stepper ! ;
+: trace-all         100 stepper ! ;
+: trace ( n -- )    abs stepper ! ;
 : trace-off         0 stepper ! ;
 
 : dbg-debug         3 dbg ;
@@ -273,21 +275,27 @@ variable word-counter
                                                 
 ( Application functions )
 
-: _fac ( r n -- r )   \ Helper function that does most of the work.
+: fac ( r n -- r )   \ Helper function that does most of the work.
                     dup 
                     if 
                         tuck * swap 1 - recurse 
                     else 
                         drop 
                     then ;
-
+dbg-quiet \ Suppress the redefinition warning
 : fac ( n -- n! )   \ Calculates factorial of a non-negative integer. No checks for stack or calculation overflow.
                     dup 
                     if 
-                        1 swap _fac 
+                        1 swap fac  \ Calls the previous definition - this is not recursion
                     else 
                         drop 1 
                     then ;
+dbg-warning
+
+: fib  ( n -- )     dup 0= if exit then 
+                    dup 1 = if exit then 
+                    1 - dup recurse 
+                    swap 1 - recurse + ;
 
 clear
-\ cr ." Library loaded." cr
+cr ." Library loaded." cr

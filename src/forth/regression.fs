@@ -47,7 +47,9 @@ variable test-num 0 test-num !
 1 1 4 dbg test-single ." invalid value 4"
 1 1 -4 dbg test-single ." invalid value -4"
 1 1 dbg-warning test-single
-\ 1 1 debuglevel? test-single 
+1 trace-on stepper @ test-single
+0 trace-off stepper @ test-single
+0 step-off stepper @ test-single
 
 ."         Printing" cr
 1 1 23 . test-single
@@ -126,6 +128,7 @@ FALSE 55 0< test-single
 1 1 fac test-single
 6 3 fac test-single
 479001600 12 fac test-single 
+4181 19 fib test-single
 
 test-results  \ Checks to see if all tests passed. Errors, if any, are left on the stack.
 
