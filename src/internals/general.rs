@@ -290,8 +290,8 @@ impl TF {
         push!(self, duration.as_millis() as i64);
     }
 
-    /// sleep ( ms -- ) Sleep for ms milliseconds
-    pub fn f_sleep(&mut self) {
+    /// ms ( ms -- ) Sleep for ms milliseconds
+    pub fn f_ms(&mut self) {
         if stack_ok!(self, 1, "sleep") {
             let delay = pop!(self) as u64;
             let millis = Duration::from_millis(delay);

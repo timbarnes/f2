@@ -246,6 +246,7 @@ variable word-counter
 : debug             show-stack step-on ;
 
 : system" ( <command> ) tmp @ '"' parse-to drop (system) ;
+: sec ( n -- )      1000 * ms ;  \ sleep for n seconds
 
 : abort" STRLIT , s" drop s-create , ['] type , ['] abort , ; immediate \ abort with a message. Use inside another word.
 

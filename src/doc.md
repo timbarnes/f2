@@ -95,5 +95,6 @@ To time a function, precede it with `now` and follow it with `millis` or `micros
 now | ( -- ) | Captures the current time using Rust's `std::time::Instant` capability
 millis | ( -- n ) | Places the number of milliseconds since `now` was called on the stack
 micros  | ( -- n ) | Places the number of microseconds since `now` was called on the stack
-sleep | ( ms -- ) | Sleep for `ms` milliseconds
+ms | ( n -- ) | Sleep for `n` milliseconds
+sec | ( n -- ) | Sleep for `n` seconds
 

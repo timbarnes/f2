@@ -435,6 +435,6 @@ impl TF {
         self.u_add_builtin("file-size", TF::f_file_size, "file-size ( file-id -- u ior ) Returns the size in characters of the file, plus an i/o result code");
         self.u_add_builtin("(system)", TF::f_system_p, "(system) ( s -- ) Execute a shell command, using string s.
         Output is channeled to stdout");
-        self.u_add_builtin("sleep", TF::f_sleep, "sleep ( ms -- ) Puts the current thread to sleep for ms milliseconds");
+        self.u_add_builtin("ms", TF::f_ms, "sleep ( ms -- ) Puts the current thread to sleep for ms milliseconds");
     }
 }
