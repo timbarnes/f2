@@ -1,4 +1,54 @@
-# Documentation for built-in functions.
+# f2 Documentation
+
+f2 is written and tested on MacOS, but does not use any MacOS-specific calls, so it should compile on Linux and Windows.
+The implementation is a combination of Rust and Forth - the core capabilities are implemented in Rust, including the memory model, the compiler and interpreter, and a range of basic operations like arithmetic and stack operations. The Rust binary is just over 1Mb in size.
+
+The data space is an array of i64, which stores all the words, contains the return and calculation stacks, and has space for additional data storage as needed.
+Within Rust, the i64 values are cast to usize as needed.
+
+Strings are stored in a separate array of chars, and builtin words are implemented through a separate jump table of function pointers.
+
+Compilation results in the address of words being stored so the engine can simply jump to the code for any referenced word. For builtin functions, the address of the function pointer is stored, with a flag to indicate that it's a builtin function.
+
+Because strings are stored separately, the names of words are captured in a single word address in data space, pointing into string space. Forth counted strings are used throughout (first 'character' is the length of the string).
+
+Three string buffers are provided as follows:
+* TIB - the text input buffer is the location where input is loaded for parsing, a line at a time.
+* PAD - a working area where each token is placed after parsing. 
+* TMP - a second working area where strings are staged before either being printed or embedded in a definition. or string variable.
+
+The dictionary is a linked list, implemented directly in the data array, using back pointers to string words together like this:
+
+n | n+1 | n+2 | n+3 | n+4 | n+5 |
+| --- | --- | --- | --- |--- | --- |
+| back-pointer | name field | code field | args ... | back pointer | ...
+| ..to previous word | points into string space | indicates word type | additional data for the word | points back to cell n |
+
+So for example, a word defined as follows: `: double 2 * ;` would be stored like this:
+
+n | n+1 | n+2 | n+3 | n+4 | n+5 | |
+| --- | --- | --- | --- |--- | --- | --- |
+| back-pointer | points to "double" in string space | DEFINITION | LITERAL | 2 | address of * | back pointer | ... 
+
+The address of * also has a flag to show that * is a builtin, not a word defined in Forth. This lets the interpreter know to look in the builtin array for a function pointer, rather than looking in data space for a definition.
+
+This system I believe is roughly equivalent to indirect threading, which allows a simple state-machine like function to step through a definition, executing words in sequence on the basis of their code addresses. When a new word is entered, the interpreter pushes a return address on the return stack. At the end of the execution of a word (or when the `exit` word is called explicitly), the return stack is popped and the program counter updated accordingly.
+
+## Memory management and memory errors
+
+Forth does not provide automatic memory management, and in general does not protect the user from illegal memory accesses. It should therefore be understood that once the dictionary or any data the program uses is corrupt, all bets are off, and a restart is usually indicated. Within the Rust code, the compiler does its best to protect the programmer, however Forth allows any address to be passed to store and load (`!`, `c!`,`@ and `c@`) words, so it's easy to cause a panic on bounds violations. Fortunately the binary is small, and startup is quick, so it's not generally too much of a problem.
+
+I may add my own bounds checks to the store and load words, but this will not eliminate all crashes, because many memory accesses occur inside the Rust engine, and a corrupt dictionary, for example, can and will cause problems. There might be a couple of approaches to fixing this:
+* Add macros for store and load that do their own bounds checking and cause a Forth `abort` rather than a Rust panic
+* Create my own panic handler that looks for bounds errors specifically and runs `abort` rather than crashing the program.
+
+Note however that neither of these solutions are really enough, because in most cases the bad load or store is the result of a bug that may well have corrupted the dictionary, so recovery may still be impossible.
+
+## Future work
+
+The current regression test is quite weak. It only examines stack results. Implementing the standard test harness
+
+# Builtin Words
 
 This is not intended to be full documentation, but a reference to the stack behavior and basic functions of some important words to help with debugging. f2 supports most of the standard stack and arithmetic words.
 
