@@ -8,7 +8,7 @@ use ::clap::{arg, Command};
 const VERSION: &str = "alpha.24.3.18";
 const WELCOME_MESSAGE: &str = "Welcome to f2.";
 const EXIT_MESSAGE: &str = "Finished";
-const DEFAULT_CORE: [&str; 2] = ["~/.f2/corelib.fs", "src/forth/corelib.fs"];
+const DEFAULT_CORE: [&str; 3] = ["./corelib.fs", "~/.f2/corelib.fs", "src/forth/corelib.fs"];
 
 macro_rules! push {
     ($self:ident, $val:expr) => {
