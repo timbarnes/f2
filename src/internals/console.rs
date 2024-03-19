@@ -4,6 +4,7 @@ use crate::messages::Msg;
 use crate::files::{FileHandle, FType, FileMode};
 use std::cmp::min;
 use std::io::{self, Write, BufRead};
+use std::process::Command;
 
 macro_rules! stack_ok {
     ($self:ident, $n: expr, $caller: expr) => {
@@ -19,7 +20,7 @@ macro_rules! stack_ok {
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
+        //$self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
     }};
@@ -36,7 +37,7 @@ macro_rules! push {
     };
 }
 
-    /// file I/O
+    /// file I/O and system call
     /// 
     /// Most activity uses STDIN and STDOUT, but the system can also process source code
     /// from files (typically ending in .fs.
@@ -50,6 +51,30 @@ macro_rules! push {
     /// Forth accesses files via an index into the vector.
 
 impl TF {
+    /// (system) ( s -- ) Execute a shell command from the string on the stack (Unix-like operating systems)
+    /// 
+pub fn f_system_p(&mut self) {
+    if stack_ok!(self, 1, "(system)") {
+        let addr = pop!(self) as usize;
+        let cmd_string = self.u_get_string(addr);
+        let mut args = cmd_string.split_ascii_whitespace();
+        //println!("args: {:?}", args);
+        let mut cmd: Command;
+        let c = args.next();
+        match c {
+            Some(c) =>  cmd = Command::new(c),
+            None => return,
+        }
+        for arg in args {
+            println!("Adding {}", arg);
+            cmd.arg(arg);
+        }
+        let output = cmd.output().expect("(system) failed to execute command");
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
+   }
+}
+
     /// key ( -- c | 0 ) get a character and push on the stack, or zero if none available
     pub fn f_key(&mut self) {
         let reader = self.reader.last();
@@ -180,7 +205,7 @@ impl TF {
 
     /// open-file ( s fam -- file-id ior ) Open the file named at s, length u, with file access mode fam.
     pub fn f_open_file(&mut self) {
-        if stack_ok!(self, 3, "open-file") {
+        if stack_ok!(self, 2, "open-file") {
             let mode = pop!(self);
             let addr = pop!(self) as usize;
             let name = self.u_get_string(addr);
@@ -199,7 +224,7 @@ impl TF {
         }
 
     }
-    /// u_open-file ( s fam -- file-id ior ) Open the file named at s, with file access mode fam.
+    /// u_open-file  Open the named file with file access mode mode.
     ///    Returns a file handle and 0 if successful. 
     pub fn u_open_file(&mut self, name: &str, mode: i64) -> Option<FileHandle> {
         let full_path = std::fs::canonicalize(name);
@@ -210,16 +235,16 @@ impl TF {
         };
         match full_path {
             Ok(full_path) => {
-                let reader = FileHandle::new(Some(&full_path), Msg::new(), mode);
-                match reader {
-                    Some(reader) => {
-                        push!(self, TRUE);
-                        return Some(reader);
+                let file_handle = FileHandle::new(Some(&full_path), Msg::new(), mode);
+                match file_handle {
+                    Some(fh) => {
+                        // push!(self, TRUE);
+                        return Some(fh);
                     }
                     None => {
                         push!(self, FALSE);
                         self.msg.error(
-                            "include-file",
+                            "open-file",
                             "Failed to create new reader",
                             None::<bool>,
                         );
@@ -229,7 +254,7 @@ impl TF {
             Err(error) => {
                 push!(self, FALSE);
                 self.msg
-                    .warning("include-file", error.to_string().as_str(), None::<bool>);
+                    .warning("open-file", error.to_string().as_str(), None::<bool>);
             }
         }
         None
@@ -259,11 +284,25 @@ impl TF {
                 let mut result = String::new();
                 match self.files[file_id].source {
                     FType::BReader(ref mut br) => {
-                        br.read_line(&mut result);
+                        match br.read_line(&mut result) {
+                            Ok(r) => {
+                                if r == 0 {
+                                    // EOF
+                                    push!(self, 0);
+                                    push!(self, FALSE);
+                                    push!(self, -1);
+                                } else {
+                                    self.u_save_string(&result, self.data[self.tmp_ptr] as usize);
+                                    push!(self, r as i64);  // Number of chars read
+                                    push!(self, TRUE);
+                                    push!(self, 0);
+                                }
+                            }
+                            Err(e) => self.msg.error("read-line", e.to_string().as_str(), None::<bool>),
+                        }
                     }
-                    _ => {}
+                    _ => self.msg.error("read-line", "No source found", Some(&self.files[file_id].source)),
                 }
-                self.u_save_string(&result, self.data[self.tmp_ptr] as usize);
             }
         }
     }

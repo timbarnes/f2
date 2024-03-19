@@ -19,6 +19,12 @@ last | Holds the address of the name field of the word being defined.
 state | Set to TRUE if compile mode is active, otherwise FALSE.
 stepper | Controls the stepper / debugger. 0 => off, 1 => trace, -1 => single step.                                                                     |
 
+## System Commands
+| WORD | SIGNATURE  |  NOTES |
+| ------ | ------- | -------- |
+system" \<shell command>" | ( -- ) | Runs a shell command and returns the output to stdout, printed into the output stream. For example, `system" ls -l"` will pass `ls -l` to sh for execution. `system"` blocks until the command is complete.
+(system) | ( s -- ) | Takes a string pointer on the stack and passes the string to `sh` for execution. Used by `system"`.
+
 ## I/O
 
 | WORD          | SIGNATURE      | NOTES                                                                                      |
@@ -29,7 +35,7 @@ stepper | Controls the stepper / debugger. 0 => off, 1 => trace, -1 => single st
 | flush         | ( -- )         | Force the output buffer to be flushed to the terminal.                                     |
 space | ( -- ) | Prints a single space.
 spaces | ( u -- ) | Prints u spaces.
-| .s            | ( -- )         | Print the contents of the stack.                                                           |
+| .s            | ( -- )         | Print the contents of the stack. Does not consume stack elements.                          |
 | .             | ( v -- )       | Print the top of the stack as an integer.                                                  |
 u. | ( u -- ) | Print the top of the stack as an unsigned value
 u.r | ( u w -- ) | Print unsigned u right-justified in a field w wide. If w is too small, print the full number anyway
@@ -44,6 +50,11 @@ ltell | ( s u w -- ) | Print a string of length u left justified in a field w ch
 rtell | ( s u w -- ) | Print a string of length u right justified in a field w characters wide. If w is too small, print the entire string anyway.
 | r/w           | ( -- )         | Set file mode to read/write, for file operations.                                          |
 | r/o           | ( -- )         | Set file mode to read only, for file operations.                                           |
+w/o | ( -- ) | Set file mode to write-only, for file operations.
+open-file | ( s u fam -- file-id ior ) | Open the file named at `s`, string length `u`, with file access mode `fam`. The file-id is an index into a vector of open files, within which the information for the file is kept. This can be accessed by other operations like `file-size` and `file-position`. ior is an i/o system result provided by the operating system. 0 means success. 
+close-file | ( file-id -- ior ) | Close the file associated with file-id, returning a code indicating success or failure.
+read-line | ( s u file-id -- u flag ior ) | Read up to `u` characters from a file, stopping at the first linefeed, or at the max length `u`. Returns the number of characters read, a flag indicating success or failure, and an io result code.
+write-line | ( s u file-id -- ior ) | Write `u` characters from `s` to a file, returning an i/o result code `ior`.
 
 ## Text interpreter and Compiler
 
@@ -74,8 +85,11 @@ abort" \<message>" | ( -- ) | Print the message and call abort
 create \<name> | ( -- ) | Takes a postfix name, and creates a new name field in the dictionary
 immediate | ( -- ) | Marks the most recent definition as immediate by setting a flag on the name field. Immediate words are executed even when compile mode is set. They are most often used to compile control structures that need some level of computation at compile time.
 immed? ( cfa -- T | F ) | Tests the word with code field address on the stack, and returns TRUE if it's an immediate word, otherwise FALSE.
+[compile] | \<name> | Delays the compilation of an immediate word. Typically used in the definition of control structures and compiler customization.
+forget-last | ( -- ) | Delete the last definition from the dictionary. 
+forget | \<name> | Delete word `<name>` and any words defined more recently than `<name>`.
 
-## Timing
+## Timing and Delay
 To time a function, precede it with `now` and follow it with `millis` or `micros`, which will place the elapsed time on the stack.
 
 | WORD       | SIGNATURE                 | NOTES                                                                                                                                                                                                                                 |
@@ -83,4 +97,20 @@ To time a function, precede it with `now` and follow it with `millis` or `micros
 now | ( -- ) | Captures the current time using Rust's `std::time::Instant` capability
 millis | ( -- n ) | Places the number of milliseconds since `now` was called on the stack
 micros  | ( -- n ) | Places the number of microseconds since `now` was called on the stack
+ms | ( n -- ) | Sleep for `n` milliseconds
+sec | ( n -- ) | Sleep for `n` seconds
 
+## Debugging
+A single stepper and trace capability allows for viewing interpreted functions as they execute. When active, it prints a visual indication of the depth of the return stack, the contents of the stack, and the word being executed.
+
+The single stepper responds to single character commands (followed by Enter):
+* `s` => take a single step
+* `t` => shift to trace mode
+* `o` => turn the stepper off
+
+WORD | SIGNATURE | NOTES
+--- | --- | ---
+step-on | ( -- ) | Turns on single stepping.
+step-off | ( -- ) | Turns off single stepping.
+trace-on | ( -- ) | Turns on tracing.
+trace-off | ( -- ) | Turns off tracing.

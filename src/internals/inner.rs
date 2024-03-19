@@ -10,7 +10,7 @@ use crate::engine::{
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
+        //$self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
     }};
@@ -93,6 +93,7 @@ impl TF {
                 return; // we've completed the last exit or encountered an error
             }
             let code = self.data[pc];
+            self.u_step(pc);
             match code {
                 BUILTIN => {
                     self.msg
@@ -172,12 +173,10 @@ impl TF {
                     let builtin_flag = code as usize & BUILTIN_MASK;
                     let address = code as usize & ADDRESS_MASK;
                     if builtin_flag != 0 {
-                        self.u_step(address, true);
-                        push!(self, address as i64);
+                         push!(self, address as i64);
                         self.i_builtin();
                         pc += 1;
                     } else {
-                        self.u_step(address, false);
                         push!(self, pc as i64 + 1); // the return address is the next object in the list
                         self.f_to_r(); // save it on the return stack
                         pc = code as usize;
@@ -207,7 +206,4 @@ impl TF {
         // pc = pop!(self) as usize;
     }
 
-    /// Continue to the next word
-    ///
-    pub fn i_next(&mut self) {}
 }

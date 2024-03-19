@@ -60,6 +60,7 @@
 : decimal 10 base ! ;
 : hex 16 base ! ;
 
+: [compile]         (') , ; immediate       \ Cause the following word to be compiled in, even if immediate
 
 : text              BL parse ;                                \ Parser shortcut for space-delimited tokens
 : s-parse           tmp @ swap parse-to ;                     \ Same as text, but loads to tmp instead of pad
@@ -90,20 +91,6 @@
 : bp>nfa            1 + ;                                         \ from preceding back pointer to nfa
 : bp>cfa            2 + ; 
 
-: for               here @ ['] >r , ; immediate
-: next              ['] r> , 
-                    LITERAL , 1 , 
-                    ['] - , ['] dup , 
-                    ['] 0= , BRANCH0 , 
-                    here @ - , 
-                    ['] drop , ; immediate
-
-: begin             here @ ; immediate
-: until             BRANCH0 , here @ - , ; immediate
-: again             BRANCH , here @ - , ; immediate
-: while             BRANCH0 , here @ 0 , ;  immediate
-: repeat            BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
-
 : 1- ( n -- n-1 )   1 - ;
 : 1+ ( n -- n+1 )   1 + ;
 : negate ( n -- -n ) 0 swap - ;
@@ -122,6 +109,33 @@
 : max ( m n -- m | n ) 2dup > if drop else nip then ;
 : abs ( n -- n | -n ) dup 0 < if -1 * then ;
 
+: for               here @ ['] >r , ; immediate
+: next              ['] r> , 
+                    LITERAL , 1 , 
+                    ['] - , ['] dup , 
+                    ['] 0= , BRANCH0 , 
+                    here @ - , 
+                    ['] drop , ; immediate
+
+: begin             here @ ; immediate
+: until             BRANCH0 , here @ - , ; immediate
+: again             BRANCH , here @ - , ; immediate
+: while             BRANCH0 , here @ 0 , ;  immediate
+: repeat            BRANCH , swap here @ - , dup here @ swap - swap ! ; immediate
+
+: case              0 ; immediate
+: of                ['] over ,
+                    ['] = ,
+                    [compile] if
+                    ['] drop , ; immediate
+: endof             [compile] else ; immediate
+: endcase           ['] drop ,
+                    begin
+                        ?dup
+                    while
+                        [compile] then
+                    repeat ; immediate
+
 : space ( -- )      BL emit ;
 : spaces ( n -- )   dup 0> if for space next else drop then ;
 : cr ( -- )         '\n' emit ;
@@ -135,11 +149,11 @@
                         drop ;
 
 : type ( s -- )                                 \ Print from the string pointer on the stack
-                    ADDRESS_MASK and                            \ Wipe out any flags
-                    dup c@ swap 1+ swap                          \ Get the length to drive the for loop
+                    ADDRESS_MASK and                \ Wipe out any flags
+                    dup c@ swap 1+ swap             \ Get the length to drive the for loop
                     tell ;
 
-: rtell ( s l w -- )                             \ Right justify a string of length l in a field of w characters
+: rtell ( s l w -- )                            \ Right justify a string of length l in a field of w characters
                     over - 1 max 
                     spaces tell ;
 
@@ -153,15 +167,15 @@
 : ltype             swap ADDRESS_MASK and dup c@ 
                     rot swap - swap type spaces ;
 
-: .tmp              tmp @ type ;                             \ Print the tmp buffer
-: .pad              pad @ type ;                             \ Print the pad buffer
+: .tmp              tmp @ type ;                               \ Print the tmp buffer
+: .pad              pad @ type ;                               \ Print the pad buffer
 : ."  ( -- )        state @                                    \ Compile or print a string
                     if
-                        STRLIT ,                                \ Compilation section
+                        STRLIT ,                               \ Compilation section
                         s" drop s-create ,
                         ['] type ,
                     else
-                        s" drop type                            \ Execution (print) section
+                        s" drop type                           \ Execution (print) section
                     then ; immediate
 
 \ mumeric functions
@@ -200,13 +214,13 @@
 : . 0 .r space ;
 
 : +! ( n addr -- )  dup @ rot + swap ! ;
-: ? ( addr -- )     @ . ;
+: ?  ( addr -- )    @ . ;
 
 \ Implementation of word
 variable word-counter
 
 : .word ( bp -- bp )                            \ prints a word name, given the preceding back pointer
-                    dup dup 4 u.r space 1+ @ 12 ltype 
+                    dup dup 1+ 4 u.r space 1+ @ 13 ltype 
                     1 word-counter +! 
                     word-counter @ 8 mod
                     if space else cr then @ ;   
@@ -223,6 +237,8 @@ variable word-counter
 : step-on           -1 stepper ! ;
 : step-off          0 stepper ! ;
 : trace-on          1 stepper ! ;
+: trace-all         100 stepper ! ;
+: trace ( n -- )    abs stepper ! ;
 : trace-off         0 stepper ! ;
 
 : dbg-debug         3 dbg ;
@@ -231,7 +247,10 @@ variable word-counter
 : dbg-quiet         0 dbg ;
 : debug             show-stack step-on ;
 
-\ : abort" ." drop type space abort ;
+: system" ( <command> ) tmp @ '"' parse-to drop (system) ;
+: sec ( n -- )      1000 * ms ;  \ sleep for n seconds
+
+: abort" STRLIT , s" drop s-create , ['] type , ['] abort , ; immediate \ abort with a message. Use inside another word.
 
 : forget-last ( -- )                            \ delete the most recent definition
                     here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
@@ -239,7 +258,8 @@ variable word-counter
                     ;
 
 : forget ( <name> )                             \ delete <name> and any words since
-                    ' dup  
+                    trace-off step-off          \ we're messing with the dictionary, so we don't want to run FIND
+                    (') dup  
                     if 
                         1- dup dup here ! @ s-here !            \ move to nfa and set HERE and S-HERE
                         1- @ 1+ dup context ! last !            \ go back a link and set CONTEXT and LAST
@@ -248,34 +268,34 @@ variable word-counter
 
 \ : ?stack depth 0= if abort" Stack underflow" then ;
 
-: kkey ( -- c )     >in @ c@ 1 >in +! ;                     \ Get the next character from the TIB
-: ?key ( -- c T | F )                                   \ If there's a character in TIB, push it and TRUE
-                    #tib @ >in @ < if FALSE else key TRUE then ;        \ otherwise push FALSE
-: strlen ( s -- n ) c@ ;                                \ return the count byte from the string
+: kkey ( -- c )     >in @ c@ 1 >in +! ;                         \ Get the next character from the TIB
+: ?key ( -- c T | F )                                           \ If there's a character in TIB, push it and TRUE
+                    #tib @ >in @ < if FALSE else key TRUE then ; \ otherwise push FALSE
+: strlen ( s -- n ) c@ ;                                        \ return the count byte from the string
                                                 
-\ s" src/regression.fs" drop drop
-\ : run-regression include ;
-
-
 ( Application functions )
 
-: _fac ( r n -- r )   \ Helper function that does most of the work.
+: fac ( r n -- r )   \ Helper function that does most of the work.
                     dup 
                     if 
                         tuck * swap 1 - recurse 
                     else 
                         drop 
                     then ;
-
+dbg-quiet \ Suppress the redefinition warning
 : fac ( n -- n! )   \ Calculates factorial of a non-negative integer. No checks for stack or calculation overflow.
                     dup 
                     if 
-                        1 swap _fac 
+                        1 swap fac  \ Calls the previous definition - this is not recursion
                     else 
                         drop 1 
                     then ;
+dbg-warning
 
-\ include src/numbers.fs
+: fib  ( n -- )     dup 0= if exit then 
+                    dup 1 = if exit then 
+                    1 - dup recurse 
+                    swap 1 - recurse + ;
 
 clear
-\ cr ." Library loaded." cr
+cr ." Library loaded." cr

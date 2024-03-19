@@ -1,6 +1,7 @@
 // Debugging help
 
-use crate::engine::{FALSE, STACK_START, TF};
+use crate::engine::{ADDRESS_MASK, BUILTIN_MASK, FALSE, RET_START, STACK_START, TF,
+    VARIABLE, CONSTANT, LITERAL, STRLIT, DEFINITION, BRANCH, BRANCH0, ABORT, EXIT, BREAK};
 use crate::messages::DebugLevel;
 
 macro_rules! stack_ok {
@@ -17,7 +18,7 @@ macro_rules! stack_ok {
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
+        //$self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
     }};
@@ -72,18 +73,32 @@ impl TF {
     ///     it is driven by the STEPPER variable:
     ///     STEPPER = 0 => stepping is off
     ///     STEPPER = -1 => single step
-    ///     STEPPER = 1 => trace mode, printing the stack and current word before each operation
+    ///     STEPPER >0 => trace mode, printing the stack and current word before each operation.
+    ///                   value of stepper indicates how many levels deep to trace
+    /// 
+    ///     pc is the program counter, which represents the address of the cell being executed.
     ///
-    pub fn u_step(&mut self, address: usize, is_builtin: bool) {
+    pub fn u_step(&mut self, pc: usize) {
         let mode = self.data[self.stepper_ptr];
+        if mode == 0 { return };
+
+        let mut contents = self.data[pc] as usize;
+        let is_builtin = if contents & BUILTIN_MASK != 0 { true } else { false };
+        contents &= ADDRESS_MASK;
         let mut c;
+
+        // Indent based on return stack depth
+        let depth = RET_START - self.return_ptr;
+        if depth > mode as usize { return; }
+        print!("{depth}");
+        for _i in 1..depth { print!(" "); }  
+        self.f_dot_s();   
         match mode {
-            0 => return, // stepper is off
             -1 => {
                 // step mode: get a character
-                print!("Step> ");
-                self.f_flush();
-                loop {
+                    print!("Step> ");
+                    self.f_flush();
+                    loop {
                     self.f_key();
                     c = pop!(self) as u8 as char;
                     if c != '\n' {
@@ -92,23 +107,33 @@ impl TF {
                 }
             }
             _ => {
-                // trace mode
+                // trace mode           
                 c = 's';
             }
         }
-        print!("Step> ");
-        self.f_flush();
         match c {
+            't' => self.data[self.stepper_ptr] = 1,
             's' => {
-                self.f_dot_s();
-                if is_builtin {
-                    println!(" {} ", &self.builtins[address].name);
-                } else {
-                    println!(" {} ", self.u_get_string(self.data[address - 1] as usize));
-                }
+                match contents as i64 {
+                    VARIABLE | CONSTANT | DEFINITION => println!(" {} ", self.u_get_string(self.data[pc - 1] as usize)),
+                    LITERAL => println!(" {} ", self.data[pc + 1]),
+                    STRLIT => println!(" {} ", self.u_get_string(self.data[pc + 1] as usize)),
+                    BRANCH => println!(" BRANCH:{}", self.data[pc + 1]),
+                    BRANCH0 => println!(" BRANCH0:{}", self.data[pc + 1]),
+                    ABORT => println!(" ABORT "),
+                    EXIT => println!(" EXIT "),
+                    BREAK => println!(" BREAK "),
+                    _ => {
+                        if is_builtin {
+                            println!(" {} ", &self.builtins[contents].name);
+                        } else {
+                            println!(" ->{}", self.u_get_string(self.data[contents - 1] as usize));
+                        }
+                    }
+                } 
             }
-            'c' => self.data[self.stepper_ptr] = FALSE,
-            '\n' | _ => println!("Stepper: 's' for show, 'c' for continue."),
+            'o' => self.data[self.stepper_ptr] = 0,
+            '\n' | _ => println!("Stepper: 's' for show, 't' for trace, 'o' for off."),
         }
     }
 }

@@ -21,7 +21,7 @@ macro_rules! stack_ok {
 macro_rules! pop {
     ($self:ident) => {{
         let r = $self.data[$self.stack_ptr];
-        $self.data[$self.stack_ptr] = 999999;
+        //$self.data[$self.stack_ptr] = 999999;
         $self.stack_ptr += 1;
         r
     }};
@@ -550,8 +550,8 @@ impl TF {
                                     let mut cfa = self.data[index] as usize;
                                     let mut mask = cfa & BUILTIN_MASK;
                                     if mask == 0 {
-                                        let word = self.data[self.data[index] as usize - 1]; // nfa address
-                                        let name = self.u_get_string(word as usize);
+                                        let word = ADDRESS_MASK & self.data[self.data[index] as usize - 1] as usize; // nfa address
+                                        let name = self.u_get_string(word);
                                         print!("{name} ");
                                     } else {
                                         mask = !BUILTIN_MASK;
@@ -643,7 +643,7 @@ impl TF {
     pub fn u_save_string(&mut self, from: &str, to: usize) {
         self.strings[to] = from.len() as u8 as char; // count byte
         for (i, c) in from.chars().enumerate() {
-            self.strings[i + 1] = c;
+            self.strings[to + i + 1] = c;
         }
     }
 }
