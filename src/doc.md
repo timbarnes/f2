@@ -26,13 +26,18 @@ n | n+1 | n+2 | n+3 | n+4 | n+5 |
 
 So for example, a word defined as follows: `: double 2 * ;` would be stored like this:
 
-n | n+1 | n+2 | n+3 | n+4 | n+5 | |
-| --- | --- | --- | --- |--- | --- | --- |
-| back-pointer | points to "double" in string space | DEFINITION | LITERAL | 2 | address of * | back pointer | ... 
+n | n+1 | n+2 | n+3 | n+4 | n+5 | | |
+| --- | --- | --- | --- |--- | --- | --- | --- |
+| back-pointer | points to "double" in string space | DEFINITION | LITERAL | 2 | address of * | EXIT | back pointer | ... 
+| points to the previous definition | also has "immediate" flag as required | indicates this is a `:` (colon) definition | indicates the next value should be pushed on the stack | the value to push on the stack | address includes a flag indicating `*` is a builtin | acts like a return, ending execution of this word | contains n (address of the next pointer back)
 
-The address of * also has a flag to show that * is a builtin, not a word defined in Forth. This lets the interpreter know to look in the builtin array for a function pointer, rather than looking in data space for a definition.
+The builtin flag disinguishes between a builtin function accessed through the jump table, and a word defined in Forth. This lets the interpreter know to look in the builtin array for a function pointer, rather than looking in data space for a definition.
 
 This system I believe is roughly equivalent to indirect threading, which allows a simple state-machine like function to step through a definition, executing words in sequence on the basis of their code addresses. When a new word is entered, the interpreter pushes a return address on the return stack. At the end of the execution of a word (or when the `exit` word is called explicitly), the return stack is popped and the program counter updated accordingly.
+
+The definitions include their names, because the compiler is incremental. When a new word is defined in terms of other words, `find` is called to search back through the dictionary. Once found, we compile the address of the word, rather than the name. So interpretation is a matter of following address links, and all name searching is done at compile time. 
+
+The inclusion of the names in the dictionary also supports the `see` operation, which decompiles user definitions, and provides basic documentation for builtin functions. Note that the decompiled version of a function is not identical to the original source code, because control structures (for example) generate branch code and insert that into the definition. This is one of Forth's superpowers. The engine only provides `BRANCH` and `BRANCH0` primitives. All the higher level control structures are implemented in Forth. The source code for these is in `corelib.fs`.
 
 ## Memory management and memory errors
 
@@ -46,7 +51,7 @@ Note however that neither of these solutions are really enough, because in most 
 
 ## Future work
 
-The current regression test is quite weak. It only examines stack results. Implementing the standard test harness
+The current regression test suite is quite weak. It only examines stack results. Implementing the standard test harness
 
 # Builtin Words
 
@@ -111,8 +116,9 @@ write-line | ( s u file-id -- ior ) | Write `u` characters from `s` to a file, r
 | WORD       | SIGNATURE                 | NOTES                                                                                                                                                                                                                                 |
 | ---------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 words |  ( -- ) | Prints a list of all dictionary entries, whether words, builtins, variables or constants. Each word is preceded by its address in the dictionary for debugging purposes.
+see | \<word> | The Forth decompiler. If \<word> is a builtin, see provides the documentation for that word. If it's a user-defined word, see provides the source code as compiled. This is often different from the original source code, because control structures are compiled down to lower level branch functions, and are not represented in their original form. 
 abort | ( -- ) | Ends execution of the current word, clears the stack, and returns to the interpreter's top level
-abort" \<message>" | ( -- ) | Print the message and call abort
+abort"  | \<message>" | Print the message and call abort
 | quit       | ( -- )                    | Interpreter outer loop: gets a line of input, processes it. Calls `query` and `eval` to do the work.                                                                                                                                  |
 | eval       | ( -- )                    | Interprets a line of input from the `TIB`. Exits when the line is finished, or if `abort` is called.                                                                                                                                  |
 | text       | ( -- b u )                | Gets a space-delimited token from the `TIB`, starting at offset `>IN`. Places it in `PAD`. Returns the address of `PAD` and the number of characters in the token, or 0 if no token could be ready (typically end of line condition). |
