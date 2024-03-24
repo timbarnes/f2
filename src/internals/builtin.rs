@@ -81,6 +81,7 @@ impl TF {
         self.abort_ptr = self.u_make_variable("abort?");
         self.state_ptr = self.u_make_variable("state");
         self.stepper_ptr = self.u_make_variable("stepper"); // turns the stepper on or off
+        self.step_depth_ptr = self.u_make_variable("stepper-depth"); // turns the stepper on or off
         self.data[self.abort_ptr] = FALSE;
     }
 

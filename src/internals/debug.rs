@@ -1,6 +1,6 @@
 // Debugging help
 
-use crate::engine::{ADDRESS_MASK, BUILTIN_MASK, RET_START, STACK_START, TF,
+use crate::engine::{ADDRESS_MASK, BUILTIN_MASK, STACK_START, TF,
     VARIABLE, CONSTANT, LITERAL, STRLIT, DEFINITION, BRANCH, BRANCH0, ABORT, EXIT, BREAK};
 use crate::messages::DebugLevel;
 
@@ -70,30 +70,51 @@ impl TF {
 
     /// u_step provides the step / trace functionality
     ///     called from inside the definition interpreter
-    ///     it is driven by the STEPPER variable:
-    ///     STEPPER = 0 => stepping is off
+    ///     it is driven by the STEPPER and STEPPER-DEPTH variables:
+    ///     STEPPER = 0  => stepping is off
     ///     STEPPER = -1 => single step
-    ///     STEPPER >0 => trace mode, printing the stack and current word before each operation.
-    ///                   value of stepper indicates how many levels deep to trace
+    ///     STEPPER = 1  => trace mode, printing the stack and current word before each operation.
+    ///             
+    ///     STEPPER-DEPTH indicates how many levels of the return stack should be stepped or traced
     /// 
     ///     pc is the program counter, which represents the address of the cell being executed.
     ///
-    pub fn u_step(&mut self, pc: usize) {
-        let mode = self.data[self.stepper_ptr];
-        if mode == 0 { return };
+    pub fn u_step(&mut self, pc: usize, call_depth: usize) {
+        let stepper_mode = self.data[self.stepper_ptr];
+        let stepper_depth = self.data[self.step_depth_ptr] as usize;
+        // let call_depth = RET_START - self.return_ptr;
+        // println!("mode:{} s-depth:{} c-depth:{}", stepper_mode, stepper_depth, call_depth);
+        if stepper_mode == 0  || call_depth > stepper_depth { return };
 
         let mut contents = self.data[pc] as usize;
         let is_builtin = if contents & BUILTIN_MASK != 0 { true } else { false };
         contents &= ADDRESS_MASK;
-        let mut c;
+        let mut c = 's';
 
-        // Indent based on return stack depth
-        let depth = RET_START - self.return_ptr;
-        if depth > mode as usize { return; }
-        print!("{depth}");
-        for _i in 1..depth { print!(" "); }  
-        self.f_dot_s();   
-        match mode {
+        if call_depth > stepper_mode as usize { return; }
+        // print!("{call_depth}");
+        for _i in 1..call_depth { print!(" "); }  
+        self.f_dot_s();
+
+        match contents as i64 {
+            VARIABLE | CONSTANT | DEFINITION => println!(" {} ", self.u_get_string(self.data[pc - 1] as usize)),
+            LITERAL => println!(" {} ", self.data[pc + 1]),
+            STRLIT => println!(" {} ", self.u_get_string(self.data[pc + 1] as usize)),
+            BRANCH => println!(" BRANCH:{}", self.data[pc + 1]),
+            BRANCH0 => println!(" BRANCH0:{}", self.data[pc + 1]),
+            ABORT => println!(" ABORT "),
+            EXIT => println!(" EXIT "),
+            BREAK => println!(" BREAK "),
+            _ => {
+                if is_builtin {
+                    println!(" {} ", &self.builtins[contents].name);
+                } else { 
+                    // it's a word address: step-in about to occur
+                    println!(" ->{}", self.u_get_string(self.data[contents - 1] as usize));
+                }
+            }
+        } 
+        match stepper_mode {
             -1 => {
                 // step mode: get a character
                     print!("Step> ");
@@ -106,34 +127,15 @@ impl TF {
                     }
                 }
             }
-            _ => {
-                // trace mode           
-                c = 's';
-            }
+            _ => {}
         }
         match c {
             't' => self.data[self.stepper_ptr] = 1,
-            's' => {
-                match contents as i64 {
-                    VARIABLE | CONSTANT | DEFINITION => println!(" {} ", self.u_get_string(self.data[pc - 1] as usize)),
-                    LITERAL => println!(" {} ", self.data[pc + 1]),
-                    STRLIT => println!(" {} ", self.u_get_string(self.data[pc + 1] as usize)),
-                    BRANCH => println!(" BRANCH:{}", self.data[pc + 1]),
-                    BRANCH0 => println!(" BRANCH0:{}", self.data[pc + 1]),
-                    ABORT => println!(" ABORT "),
-                    EXIT => println!(" EXIT "),
-                    BREAK => println!(" BREAK "),
-                    _ => {
-                        if is_builtin {
-                            println!(" {} ", &self.builtins[contents].name);
-                        } else {
-                            println!(" ->{}", self.u_get_string(self.data[contents - 1] as usize));
-                        }
-                    }
-                } 
-            }
-            'o' => self.data[self.stepper_ptr] = 0,
-            '\n' | _ => println!("Stepper: 's' for show, 't' for trace, 'o' for off."),
+            'i' => self.data[self.step_depth_ptr] += 1,
+            'o' => self.data[self.step_depth_ptr] -= 1,
+            'c' => self.data[self.stepper_ptr] = 0,
+            'h' | '?' => println!("Stepper: 's' for show, 't' for trace, 'c' for continue, 'o' for step-out."),
+            _ =>{}, 
         }
     }
 }

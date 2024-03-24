@@ -1,6 +1,6 @@
 // General-purpose builtin words
 
-use crate::engine::{FALSE, STACK_START, TF, TRUE};
+use crate::engine::{DATA_SIZE, FALSE, STACK_START, TF, TRUE};
 use std::time::{Instant, Duration};
 use std::thread;
 
@@ -178,8 +178,13 @@ impl TF {
     /// @ (get) ( a -- n ) loads the value at address a onto the stack
     pub fn f_get(&mut self) {
         if stack_ok!(self, 1, "@") {
-            let addr = pop!(self);
-            push!(self, self.data[addr as usize]);
+            let addr = pop!(self) as usize;
+            if addr < DATA_SIZE {
+                push!(self, self.data[addr]);
+            } else {
+                self.msg.error("@", "Address out of range", Some(addr));
+                self.f_abort();
+            }
         }
     }
 
@@ -187,9 +192,14 @@ impl TF {
     ///
     pub fn f_store(&mut self) {
         if stack_ok!(self, 2, "!") {
-            let addr = pop!(self);
+            let addr = pop!(self) as usize;
             let value = pop!(self);
-            self.data[addr as usize] = value;
+            if addr < DATA_SIZE {
+                self.data[addr] = value;
+            } else {
+                self.msg.error("@", "Address out of range", Some(addr));
+                self.f_abort();
+            }
         }
     }
 

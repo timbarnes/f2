@@ -79,10 +79,11 @@ pub struct TF {
     pub tib_in_ptr: usize,
     pub exit_flag: bool,              // set when the "bye" word is executed.
     pub msg: Msg,
-    pub reader: Vec<FileHandle>,   // allows for nested file processing
+    pub reader: Vec<FileHandle>,      // allows for nested file processing
     pub files: Vec<FileHandle>,       // keeps track of open files
     pub show_stack: bool,             // show the stack at the completion of a line of interaction
-    pub stepper_ptr: usize,
+    pub stepper_ptr: usize,           // indicates trace, step, or continuous execution
+    pub step_depth_ptr: usize,        // number of levels deep to step or trace
     pub timer: Instant,               // for timing things
 }
 
@@ -117,6 +118,7 @@ impl TF {
             files: Vec::new(),
             show_stack: true,
             stepper_ptr: 0,
+            step_depth_ptr: 1,
             timer: Instant::now(),
         };
         let fh = FileHandle::new(None, Msg::new(), FileMode::RO).expect("Can't access stdout");

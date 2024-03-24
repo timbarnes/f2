@@ -84,6 +84,7 @@ impl TF {
     ///
     pub fn i_definition(&mut self) {
         let mut pc = pop!(self) as usize; // This is the start of the definition: first word after the inner interpreter opcode
+        let mut call_depth: usize = 1;
         push!(self, 0); // this is how we know when we're done
         self.f_to_r();
         loop {
@@ -93,7 +94,7 @@ impl TF {
                 return; // we've completed the last exit or encountered an error
             }
             let code = self.data[pc];
-            self.u_step(pc);
+            self.u_step(pc, call_depth);
             match code {
                 BUILTIN => {
                     self.msg
@@ -138,7 +139,6 @@ impl TF {
                     } else {
                         pc += offset as usize;
                     }
-                    // pc += 1; // skip over the offset
                 }
                 BRANCH0 => {
                     pc += 1;
@@ -161,6 +161,8 @@ impl TF {
                     // Current definition is finished, so pop the PC from the return stack
                     self.f_r_from();
                     pc = pop!(self) as usize;
+                    call_depth -= 1;
+
                 }
                 BREAK => {
                     // Breaks out of a word by popping the PC from the return stack
@@ -177,6 +179,7 @@ impl TF {
                         self.i_builtin();
                         pc += 1;
                     } else {
+                        call_depth += 1;
                         push!(self, pc as i64 + 1); // the return address is the next object in the list
                         self.f_to_r(); // save it on the return stack
                         pc = code as usize;

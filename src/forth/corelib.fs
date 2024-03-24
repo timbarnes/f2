@@ -83,12 +83,12 @@
 : else              BRANCH , here @ 0 , swap dup here @ swap - swap ! ; immediate
 : then dup here @ swap - swap ! ; immediate
 
-: ' (')             dup @ dup DEFINITION = if drop else nip then ; \ searches for a (postfix) word and returns its cfa or FALSE
+: '                 (') dup @ dup DEFINITION = if drop else nip then ; \ searches for a (postfix) word and returns its cfa or FALSE
 
-: [']               LITERAL , ' , ; immediate                        \ compiles a word's cfa into a definition as a literal
+: [']               LITERAL , ' , ; immediate                    \ compiles a word's cfa into a definition as a literal
 : cfa>nfa           1 - ;                                        \ converts an cfa to an nfa
 : nfa>cfa           1 + ;                                        \ converts an nfa to a cfa
-: bp>nfa            1 + ;                                         \ from preceding back pointer to nfa
+: bp>nfa            1 + ;                                        \ from preceding back pointer to nfa
 : bp>cfa            2 + ; 
 
 : 1- ( n -- n-1 )   1 - ;
@@ -136,6 +136,27 @@
                         [compile] then
                     repeat ; immediate
 
+\ Stepper controls
+1 stepper-depth !
+: step-on           1 stepper-depth ! -1 stepper ! ;
+: step-off          0 stepper ! ;
+: trace-on          1 stepper ! 2 stepper-depth ! ;
+: trace-all         1 stepper ! 100 stepper-depth ! ;
+\ : trace ( n -- )    abs stepper-depth ! ;
+: trace-off         0 stepper ! ;
+
+: dbg-debug         3 dbg ;
+: dbg-info          2 dbg ;
+: dbg-warning       1 dbg ;
+: dbg-quiet         0 dbg ;
+: debug             show-stack step-on ;
+
+: system" ( <command> ) tmp @ '"' parse-to drop (system) ;
+: sec ( n -- )      1000 * ms ;  \ sleep for n seconds
+
+: abort" STRLIT , s" drop s-create , ['] type , ['] abort , ; immediate \ abort with a message. Use inside another word.
+
+
 : space ( -- )      BL emit ;
 : spaces ( n -- )   dup 0> if for space next else drop then ;
 : cr ( -- )         '\n' emit ;
@@ -176,6 +197,21 @@
                         ['] type ,
                     else
                         s" drop type                           \ Execution (print) section
+                    then ; immediate
+
+: stop"  ( -- )     state @                                    \ Compile or print a string
+                    if
+                        STRLIT ,                               \ Compilation section
+                        s" drop s-create ,
+                        ['] type ,
+                        ['] .s ,
+                        ['] flush ,
+                        ['] key , ['] drop ,
+                    else
+                        s" drop type                           \ Execution (print) section
+                        .s
+                        ." Stopped: "
+                        flush key drop
                     then ; immediate
 
 \ mumeric functions
@@ -233,24 +269,31 @@ variable word-counter
                     until 
                         drop ;   
 
-\ Stepper controls
-: step-on           -1 stepper ! ;
-: step-off          0 stepper ! ;
-: trace-on          1 stepper ! ;
-: trace-all         100 stepper ! ;
-: trace ( n -- )    abs stepper ! ;
-: trace-off         0 stepper ! ;
+\ Dictionary traversal functions
+\   Takes an execution address on the stack, and execs it on every word, via its preceding back pointer
+\   The word being executed must consume the address: it's signature is ( bp xt -- ).
 
-: dbg-debug         3 dbg ;
-: dbg-info          2 dbg ;
-: dbg-warning       1 dbg ;
-: dbg-quiet         0 dbg ;
-: debug             show-stack step-on ;
+: print-word bp>nfa @ type ;
 
-: system" ( <command> ) tmp @ '"' parse-to drop (system) ;
-: sec ( n -- )      1000 * ms ;  \ sleep for n seconds
-
-: abort" STRLIT , s" drop s-create , ['] type , ['] abort , ; immediate \ abort with a message. Use inside another word.
+: traverse-exec ( xt bp -- xt bp bp xt )    \ Provide the nfa from the bp in preparation for traverse-exec
+                    2dup swap               \ Setup for the execute
+                    execute ;
+: traverse-next ( xt bp -- xt bp' ) 
+                    dup if @ then ;         \ Checks for zero, and gets the next pointer if non-zero
+: (traverse-words) ( xt bp -- xt bp )       \ 
+                    begin
+                        dup 
+                        \ stop" before while> "
+                    while
+                        \ stop" after while> "
+                        traverse-exec       \ Run the word
+                        traverse-next
+                    repeat ;
+: traverse-words ( xt -- )                  \ Traverses the word list, placing each nfa on the stack and calling xt 
+                    last @ 1-               \ Move to the top word's preceding back pointer 
+                    (traverse-words)        \ Loop through the words
+                    drop drop
+                    ;
 
 : forget-last ( -- )                            \ delete the most recent definition
                     here @ 1- @ dup 1+ here !                   \ resets HERE to the previous back pointer
