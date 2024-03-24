@@ -82,17 +82,12 @@ impl TF {
     pub fn u_step(&mut self, pc: usize, call_depth: usize) {
         let stepper_mode = self.data[self.stepper_ptr];
         let stepper_depth = self.data[self.step_depth_ptr] as usize;
-        // let call_depth = RET_START - self.return_ptr;
-        // println!("mode:{} s-depth:{} c-depth:{}", stepper_mode, stepper_depth, call_depth);
         if stepper_mode == 0  || call_depth > stepper_depth { return };
-
         let mut contents = self.data[pc] as usize;
         let is_builtin = if contents & BUILTIN_MASK != 0 { true } else { false };
         contents &= ADDRESS_MASK;
         let mut c = 's';
 
-        if call_depth > stepper_mode as usize { return; }
-        // print!("{call_depth}");
         for _i in 1..call_depth { print!(" "); }  
         self.f_dot_s();
 
